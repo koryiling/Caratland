@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>大胃王 (replica)</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ===================== Login / Register / Reset ===================== -->
+<div id="auth-screen" class="app auth">
+  <div class="topbar end">
+    <button class="icon-btn wide" id="lang-auth" data-i18n="language">English</button>
+  </div>
+
+  <header class="hero">
+    <h1>大胃王 <span class="replica">(replica)</span></h1>
+    <p class="subtitle" data-i18n="subtitle">– 多人同步 –</p>
+  </header>
+
+  <section class="card">
+    <div class="tabs" role="tablist">
+      <button class="tab active" id="tab-login" role="tab" data-i18n="login">登入</button>
+      <button class="tab" id="tab-register" role="tab" data-i18n="register">注册</button>
+      <button class="tab" id="tab-reset" role="tab" data-i18n="reset">重设密码</button>
+    </div>
+
+    <form id="auth-form" class="form" autocomplete="off">
+      <label class="field">
+        <span id="label-username" data-i18n="username">用户名</span>
+        <input id="username" name="username" type="text" maxlength="16" required>
+      </label>
+
+      <label class="field">
+        <span id="label-password" data-i18n="password">密码</span>
+        <input id="password" name="password" type="password" minlength="4" required>
+      </label>
+
+      <div class="field" id="color-field" hidden>
+        <span data-i18n="favColor">喜欢的颜色</span>
+        <div id="swatches" class="swatches"></div>
+      </div>
+
+      <p id="reset-help" class="hint" data-i18n="forgotHelp" hidden></p>
+      <p id="auth-error" class="error" hidden></p>
+
+      <button type="submit" id="auth-submit" class="wide-btn" data-i18n="submitLogin">登入</button>
+    </form>
+
+    <p class="hint" data-i18n="authHint"></p>
+  </section>
+</div>
+
+<!-- ===================== Game ===================== -->
+<div id="game-screen" class="app wide" hidden>
+
+  <div class="topbar">
+    <div class="topbar-group">
+      <a class="icon-btn admin-link" id="admin-link" href="admin.html" title="管理后台" hidden>⚙</a>
+      <button class="icon-btn wide side-toggle" id="side-toggle">
+        🏆 <span data-i18n="panel">面板</span>
+      </button>
+      <button class="icon-btn wide" id="lang-game" data-i18n="language">English</button>
+    </div>
+
+    <div class="topbar-right">
+      <!-- Refresh sits left of the coins — quick to reach. -->
+      <button class="icon-btn" id="refresh" data-i18n-title="refresh" aria-label="refresh">⟳</button>
+      <span class="coins-chip"><span class="coins-ic">🪙</span><span id="coins-top">0</span></span>
+      <!-- Identity: who you are + ID; tap opens the profile page. -->
+      <button class="identity" id="identity" type="button">
+        <span class="identity-dot" id="player-dot-top"></span>
+        <span class="identity-name" id="player-name-top">—</span>
+        <span class="uid" id="player-id-top"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Top-level view switcher. -->
+  <div class="game-tabs" id="view-tabs">
+    <button class="game-tab" data-view="chatroom">💬 <span data-i18n="tabChat">聊天室</span></button>
+    <button class="game-tab active" data-view="dww">🐾 <span data-i18n="tabDww">大胃王</span></button>
+    <button class="game-tab" data-view="soon">🚀 <span data-i18n="tabStar">星际旅行</span></button>
+  </div>
+
+  <!-- ======================= ChatRoom view ======================= -->
+  <section id="view-chatroom" class="game-view" hidden>
+    <section class="card room">
+      <h2 class="admin-h2">🪑 <span data-i18n="onlineRoom">在线房间</span>
+        <span class="panel-tag" id="seat-count">0/9</span></h2>
+      <div id="seats" class="seats"></div>
+      <p class="hint" data-i18n="giftHint">点击座位上的用户可送礼物 🎁</p>
+    </section>
+
+    <!-- Everyone currently online -->
+    <section class="card">
+      <h2 class="admin-h2">🟢 <span data-i18n="onlinePeople">在线玩家</span>
+        <span class="panel-tag" id="online-count">0</span></h2>
+      <div id="online-list" class="online-list"></div>
+    </section>
+
+    <!-- Wealth / Charm / gift feed -->
+    <section class="card">
+      <div class="lb-head">
+        <h2 class="admin-h2">🏅 <span data-i18n="rankings">榜单</span></h2>
+        <div class="lb-tabs" id="gift-tabs">
+          <button class="lb-tab active" data-board="wealth" data-i18n="wealth">财富榜</button>
+          <button class="lb-tab" data-board="charm" data-i18n="charm">魅力榜</button>
+          <button class="lb-tab" data-board="feed" data-i18n="giftFeed">送礼记录</button>
+        </div>
+      </div>
+      <ol id="gift-board" class="lb-list"></ol>
+    </section>
+  </section>
+
+  <!-- ======================= Star Travel ======================= -->
+  <section id="view-soon" class="game-view star-layout" hidden>
+    <iframe id="star-frame" class="star-frame" title="Star Travel"
+            loading="lazy" allowtransparency="true"></iframe>
+
+    <aside class="star-side">
+      <section class="card">
+        <h2 class="admin-h2">🏆 <span data-i18n="starBigWins">大奖记录</span>
+          <span class="panel-tag" id="star-global-total">0</span></h2>
+        <ul id="star-global" class="star-hist"></ul>
+      </section>
+      <section class="card">
+        <h2 class="admin-h2">📜 <span data-i18n="myPlays">我的记录</span>
+          <span class="panel-tag" id="star-mine-total">0</span></h2>
+        <ul id="star-mine" class="star-hist"></ul>
+      </section>
+    </aside>
+  </section>
+
+  <!-- ======================= DWW game view ======================= -->
+  <div id="view-dww" class="game-view layout">
+
+    <!-- ---------- main column ---------- -->
+    <div class="main-col">
+
+      <section class="status-card">
+        <div class="polaroid">
+          <div class="polaroid-photo">🐰🐻</div>
+          <span class="polaroid-caption">Yi &amp; Bu ♡</span>
+        </div>
+
+        <dl class="stats">
+          <div class="stat">
+            <dt><span class="stat-icon">🕐</span> <span data-i18n="timeLeft">剩余时间：</span></dt>
+            <dd><span id="timer" class="pill">--</span> <span data-i18n="seconds">秒</span></dd>
+          </div>
+          <div class="stat">
+            <dt><span class="stat-icon coin">🪙</span> <span data-i18n="coinsLabel">金币：</span></dt>
+            <dd><span id="balance" class="pill">0</span></dd>
+          </div>
+          <div class="stat">
+            <dt><span class="stat-icon">👥</span> <span data-i18n="playersIn">本轮参与：</span></dt>
+            <dd><span id="bettors" class="pill">0</span> <span data-i18n="peopleUnit">人</span></dd>
+          </div>
+        </dl>
+      </section>
+
+      <section id="chips" class="chip-row" aria-label="chips"></section>
+
+      <section id="board" class="board" aria-label="board"></section>
+
+      <a id="request-topup" class="wide-btn subtle" href="buy.html">
+        <span class="wide-btn-icon">💰</span> <span data-i18n="requestTopup">申请充值</span>
+      </a>
+      <p id="request-status" class="hint" hidden></p>
+
+      <button id="view-records" class="wide-btn">
+        <span class="wide-btn-icon">📋</span> <span data-i18n="myRecords">我的记录</span>
+      </button>
+
+      <section class="round-status">
+        <p id="phase-text" class="phase-text" data-i18n="connecting">连接中…</p>
+        <div class="divider"></div>
+        <button id="past-results" class="wide-btn subtle">
+          <span class="wide-btn-icon">📊</span> <span data-i18n="pastResults">历史开奖</span>
+        </button>
+      </section>
+    </div>
+
+    <!-- ---------- side column ---------- -->
+    <aside class="side-col" id="sidebar">
+
+      <!-- This round's top 3 -->
+      <section class="card">
+        <h2 class="admin-h2">🏆 <span data-i18n="top3">本局前三名</span></h2>
+        <div id="podium" class="podium"></div>
+      </section>
+
+      <!-- Leaderboard -->
+      <section class="card leaderboard">
+        <div class="lb-head">
+          <h2 class="admin-h2"><span data-i18n="leaderboard">排行榜</span></h2>
+          <div class="lb-tabs" id="lb-tabs">
+            <button class="lb-tab active" data-range="day" data-i18n="daily">今日</button>
+            <button class="lb-tab" data-range="week" data-i18n="weekly">本周</button>
+            <button class="lb-tab" data-range="month" data-i18n="monthly">本月</button>
+          </div>
+        </div>
+        <ol id="lb-list" class="lb-list"></ol>
+      </section>
+    </aside>
+  </div>
+
+  <p id="toast" class="toast" hidden></p>
+  <div id="announce" class="announce" hidden></div>
+
+  <!-- Floating chat — available on every tab, minimizes to a bubble so it
+       never interrupts play. -->
+  <button id="chat-fab" class="chat-fab">💬<span id="chat-fab-dot" class="chat-fab-dot" hidden></span></button>
+  <div id="chat-float" class="chat-float" hidden>
+    <div class="chat-float-head">
+      <div class="chat-cats" id="chat-cats">
+        <button class="chat-cat active" data-cat="all" data-i18n="catAll">全部</button>
+        <button class="chat-cat" data-cat="chat" data-i18n="catPeople">玩家</button>
+        <button class="chat-cat" data-cat="gift" data-i18n="giftFeed">送礼记录</button>
+        <button class="chat-cat" data-cat="game" data-i18n="catGame">游戏</button>
+      </div>
+      <button id="chat-float-min" class="chat-float-min" aria-label="minimize">—</button>
+    </div>
+    <ul id="chat-list" class="chat-list"></ul>
+    <form id="chat-form" class="chat-form">
+      <input id="chat-input" type="text" maxlength="200" data-i18n-ph="chatPlaceholder"
+             placeholder="说点什么…" autocomplete="off">
+      <button type="submit" class="chat-send" data-i18n="send">发送</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== Pull-into-seat picker (seat admins) ===================== -->
+<div id="pull-panel" class="panel" hidden>
+  <div class="panel-inner">
+    <div class="gift-head">
+      <h2 data-i18n="pullSomeone">拉人入座</h2>
+      <button id="pull-close" class="gift-x" aria-label="close">✕</button>
+    </div>
+    <div id="pull-list" class="gift-recipients"></div>
+  </div>
+</div>
+
+<!-- ===================== Person action chooser ===================== -->
+<div id="person-panel" class="panel" hidden>
+  <div class="panel-inner person-inner">
+    <div class="person-head">
+      <span class="person-avatar" id="person-avatar">🐰</span>
+      <span class="person-name" id="person-name">—</span>
+    </div>
+    <button class="wide-btn" id="person-profile" data-i18n="viewProfile">查看资料</button>
+    <button class="wide-btn subtle" id="person-gift" data-i18n="giveGiftBtn">送礼物</button>
+    <button class="wide-btn subtle" id="person-cancel" data-i18n="cancel">取消</button>
+  </div>
+</div>
+
+<!-- ===================== Gift overlay (multi-recipient, stays open) ===================== -->
+<div id="gift-panel" class="panel" hidden>
+  <div class="panel-inner">
+    <div class="gift-head">
+      <h2 data-i18n="sendGift">送礼</h2>
+      <button id="gift-close" class="gift-x" aria-label="close">✕</button>
+    </div>
+    <div class="recip-head">
+      <p class="hint" style="margin:0" data-i18n="pickRecipients">选择接收者（可多选）</p>
+      <button type="button" class="lb-tab" id="gift-all" data-i18n="selectAll">全选</button>
+    </div>
+    <div id="gift-recipients" class="gift-recipients"></div>
+    <div class="lb-tabs" id="gift-source">
+      <button class="lb-tab active" data-src="coin" data-i18n="directGift">直送礼物</button>
+      <button class="lb-tab" data-src="box" data-i18n="boxGift">礼盒</button>
+      <button class="lb-tab" data-src="bag" data-i18n="bagGift">背包</button>
+    </div>
+    <div id="gift-grid" class="gift-grid"></div>
+    <div class="qty-row">
+      <span data-i18n="quantity">数量</span>
+      <button type="button" class="qty-btn" id="qty-minus">−</button>
+      <input id="gift-qty" class="qty-input" type="number" min="1" value="1" inputmode="numeric">
+      <button type="button" class="qty-btn" id="qty-plus">＋</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== Records overlay ===================== -->
+<div id="panel" class="panel" hidden>
+  <div class="panel-inner">
+    <h2 id="panel-title">Records</h2>
+    <ul id="panel-list" class="panel-list"></ul>
+    <button id="panel-close" class="wide-btn" data-i18n="close">关闭</button>
+  </div>
+</div>
+
+<script src="app.js" type="module"></script>
+</body>
+</html>
