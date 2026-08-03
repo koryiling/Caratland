@@ -5,7 +5,7 @@
   "description": "大胃王 (replica) — synchronized multiplayer animal wheel",
   "type": "module",
   "scripts": {
-    "dev": "vercel dev"
+    "start": "node server.mjs"
   },
   "engines": {
     "node": "22.x"

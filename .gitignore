@@ -11,3 +11,9 @@ npm-debug.log*
 /bg.jpg
 
 .vercel
+.env*
+
+# local agent-skill tooling installed by the Vercel/Supabase integration
+.agents/
+.claude/
+skills-lock.json

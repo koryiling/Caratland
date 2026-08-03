@@ -1,0 +1,3 @@
+# deploy.sh runs on a Linux server — keep LF endings even when committed from Windows.
+*.sh text eol=lf
+*.mjs text eol=lf
