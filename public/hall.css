@@ -611,3 +611,79 @@ body.drawer-open .game-handle { display: none; }
 /* ---------- more sheet ---------- */
 
 #more-sheet .card { margin-top: 0.7rem; }
+
+/* ============================================================
+   Desktop — two-panel hall: seats + ticker left, chat right
+   ============================================================ */
+
+@media (min-width: 900px) {
+  .hall {
+    width: min(100%, 960px);
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    grid-template-areas:
+      'head head'
+      'seats chat'
+      'ticker chat';
+    align-content: start;
+    align-items: start;
+    column-gap: 1.6rem;
+    row-gap: 1rem;
+  }
+
+  .hall-head { grid-area: head; min-height: 170px; }
+  .hall-title { height: 176px; }
+  .hall-title-main { font-size: 2.5rem; }
+  .hall-badge-circle { width: 128px; height: 128px; }
+
+  .hall .seats {
+    grid-area: seats;
+    gap: 1.4rem 0.8rem;
+    align-self: start;
+  }
+  .hall .seat-ring { width: 100px; height: 100px; }
+  .hall .seat-avatar { font-size: 2.9rem; }
+  .hall .seat-btn { top: 66px; font-size: 0.74rem; }
+  .hall .seat-name { font-size: 0.85rem; max-width: 130px; }
+  .hall .seat-hearts { font-size: 0.74rem; }
+  .hall .seat-mic { width: 28px; height: 28px; font-size: 0.72rem; }
+
+  .hall-ticker { grid-area: ticker; margin-top: 0; }
+  .hall-ticker .tick { font-size: 0.8rem; }
+
+  /* chat becomes a standing glass panel on the right */
+  .hall-chat {
+    grid-area: chat;
+    align-self: stretch;
+    height: calc(100dvh - 16.5rem);
+    min-height: 420px;
+    padding: 0.8rem;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.30);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 8px 30px rgba(90, 120, 70, 0.15);
+  }
+  .hall-chat .chat-list {
+    flex: 1;
+    max-height: none;
+    min-height: 0;
+  }
+
+  /* hover polish (no touch) */
+  .hall .seat.giftable .seat-ring { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+  .hall .seat.giftable:hover .seat-ring {
+    transform: scale(1.06);
+    box-shadow: 0 6px 20px rgba(90, 120, 70, 0.35), inset 0 0 12px rgba(255, 255, 255, 0.4);
+  }
+  .dock-btn, .dock-send, .dock-gift, .game-handle { transition: transform 0.15s ease, filter 0.15s ease; }
+  .dock-btn:hover, .dock-send:hover { transform: translateY(-2px); }
+  .dock-gift:hover { transform: translateY(-2px) scale(1.05); filter: brightness(1.05); }
+  .game-handle:hover { transform: translateY(-50%) translateX(-3px); }
+}
+
+/* extra-wide: give the garden some breathing room */
+@media (min-width: 1400px) {
+  .hall { width: 1040px; }
+}
