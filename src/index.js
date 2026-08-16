@@ -147,27 +147,28 @@ async function startSession(db, userId) {
    players triggering the same round concurrently cannot double-pay.        */
 
 async function settleDueRounds(db, secret, currentRound) {
-  const pending = await db.prepare(
-    `SELECT round_id, user_id, animal_id, stake FROM bets
-      WHERE round_id < ? ORDER BY round_id LIMIT 500`
-  ).bind(currentRound).all();
+  // Settle whole rounds only: pick the oldest due rounds, then load each
+  // round's bets in full. (A LIMIT over raw bet rows could split a round —
+  // the final DELETE would then discard the unfetched bets unpaid.)
+  const due = await db.prepare(
+    'SELECT DISTINCT round_id FROM bets WHERE round_id < ? ORDER BY round_id LIMIT ?'
+  ).bind(currentRound, MAX_ROUNDS_PER_REQUEST).all();
 
-  if (!pending.results?.length) return;
-
-  const byRound = new Map();
-  for (const bet of pending.results) {
-    const round = byRound.get(bet.round_id) ?? new Map();
-    const slip = round.get(bet.user_id) ?? [];
-    slip.push(bet);
-    round.set(bet.user_id, slip);
-    byRound.set(bet.round_id, round);
-  }
+  if (!due.results?.length) return;
 
   const at = Date.now();
-  let processed = 0;
 
-  for (const [roundId, slips] of byRound) {
-    if (processed++ >= MAX_ROUNDS_PER_REQUEST) break;
+  for (const { round_id: roundId } of due.results) {
+    const pending = await db.prepare(
+      'SELECT user_id, animal_id, stake FROM bets WHERE round_id = ?'
+    ).bind(roundId).all();
+
+    const slips = new Map();
+    for (const bet of pending.results ?? []) {
+      const slip = slips.get(bet.user_id) ?? [];
+      slip.push(bet);
+      slips.set(bet.user_id, slip);
+    }
 
     const spot = await drawFor(roundId, secret);
     const winnerIds = new Set(resolveWinners(spot).map((a) => a.id));
@@ -635,7 +636,7 @@ async function handle(request, env) {
       db.prepare(
         `INSERT INTO inventory (user_id, item_key, emoji, name, value, count)
          VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT (user_id, item_key) DO UPDATE SET count = count + excluded.count`
+         ON CONFLICT (user_id, item_key) DO UPDATE SET count = inventory.count + excluded.count`
       ).bind(me.id, k, String(emoji), String(name ?? ''), v, n),
       db.prepare(
         'INSERT INTO star_wins (user_id, username, emoji, name, value, qty, at) VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -939,22 +940,26 @@ async function handle(request, env) {
     if (!animalById.has(animalId)) return fail(400, 'bad_target', '无效的下注目标');
 
     const stake = Number(amount);
-    if (!Number.isInteger(stake) || stake <= 0) return fail(400, 'bad_amount', '金额无效');
-
-    // Deduct conditionally: the WHERE clause is the balance check, so two
-    // simultaneous bets can never overdraw the account.
-    const deducted = await db.prepare(
-      'UPDATE users SET coins = coins - ? WHERE id = ? AND coins >= ?'
-    ).bind(stake, me.id, stake).run();
-
-    if (deducted.meta.changes !== 1) {
-      return fail(400, 'insufficient', '余额不足，请联系管理员充值');
+    if (!Number.isInteger(stake) || stake <= 0 || stake > 100_000_000) {
+      return fail(400, 'bad_amount', '金额无效');
     }
 
-    await db.prepare(
-      `INSERT INTO bets (round_id, user_id, animal_id, stake) VALUES (?, ?, ?, ?)
-       ON CONFLICT (round_id, user_id, animal_id) DO UPDATE SET stake = stake + excluded.stake`
-    ).bind(roundId, me.id, animalId, stake).run();
+    // One atomic statement: the CTE deducts (the WHERE clause is the balance
+    // check, so concurrent bets can't overdraw) and the bet row is only
+    // written when the deduction actually happened — an error between the
+    // two can never burn a stake without recording the bet.
+    const placed = await db.prepare(
+      `WITH paid AS (
+         UPDATE users SET coins = coins - ? WHERE id = ? AND coins >= ? RETURNING id
+       )
+       INSERT INTO bets (round_id, user_id, animal_id, stake)
+       SELECT ?, ?, ?, ? FROM paid
+       ON CONFLICT (round_id, user_id, animal_id) DO UPDATE SET stake = bets.stake + excluded.stake`
+    ).bind(stake, me.id, stake, roundId, me.id, animalId, stake).run();
+
+    if (placed.meta.changes !== 1) {
+      return fail(400, 'insufficient', '余额不足，请联系管理员充值');
+    }
 
     const user = await db.prepare('SELECT * FROM users WHERE id = ?').bind(me.id).first();
     const bets = await db.prepare(
