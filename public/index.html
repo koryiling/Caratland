@@ -81,27 +81,8 @@
   <!-- ======================= Voice hall (main screen) ======================= -->
   <section id="view-chatroom" class="hall">
 
-    <header class="hall-head">
-      <!-- vertical calligraphy title -->
-      <div class="hall-title">
-        <span class="hall-title-main">不期而遇</span>
-        <span class="hall-title-sub">遇见你，是最美的意外</span>
-      </div>
-
-      <!-- round room badge -->
-      <div class="hall-badge">
-        <span class="hall-badge-wave">⌁⌁⌁ 语音厅 ⌁⌁⌁</span>
-        <div class="hall-badge-circle">
-          <span class="hall-badge-en">Bu Qi</span>
-          <span class="hall-badge-name">不期而遇</span>
-          <span class="hall-badge-id">ID: 10286</span>
-        </div>
-        <span class="hall-badge-count"><span id="seat-count">0/9</span> 🪑</span>
-      </div>
-
-      <!-- hanging ribbon -->
-      <div class="hall-ribbon"><span>👑</span>优<br>质<br>推<br>荐</div>
-    </header>
+    <!-- app.js writes the seat tally here; not shown in the current design -->
+    <span id="seat-count" hidden></span>
 
     <!-- mic seats (renderSeats fills this) -->
     <div id="seats" class="seats"></div>
@@ -129,8 +110,6 @@
                placeholder="打招呼…" autocomplete="off">
         <button type="submit" class="dock-send" data-i18n-title="send" aria-label="send">➤</button>
         <button type="button" class="dock-btn" id="dock-emoji" aria-label="emoji">☺</button>
-        <button type="button" class="dock-btn" id="dock-mic" aria-label="mic">🎙️</button>
-        <button type="button" class="dock-btn" id="dock-sound" aria-label="sound">🔊</button>
         <button type="button" class="dock-btn" id="dock-more" aria-label="more">⋯</button>
         <button type="button" class="dock-btn" id="dock-game" aria-label="games">🎮</button>
         <button type="button" class="dock-gift" id="dock-gift" aria-label="gift">🎁</button>

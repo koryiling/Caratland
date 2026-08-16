@@ -1377,12 +1377,6 @@ $('dock-gift')?.addEventListener('click', () => openGiftModal());
 $('dock-more')?.addEventListener('click', () => { $('more-sheet').hidden = false; loadGiftBoard(); });
 $('more-close')?.addEventListener('click', () => { $('more-sheet').hidden = true; });
 $('more-sheet')?.addEventListener('click', (e) => { if (e.target === $('more-sheet')) $('more-sheet').hidden = true; });
-for (const id of ['dock-mic', 'dock-sound']) {
-  $(id)?.addEventListener('click', function () {
-    this.classList.toggle('off');
-    toast(t('voiceSoon'));
-  });
-}
 
 /* ---- Boot ---- */
 
