@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>大胃王 (replica)</title>
+<title>不期而遇 · 语音厅</title>
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="hall.css">
 </head>
 <body>
 
@@ -77,42 +78,107 @@
     </div>
   </div>
 
-  <!-- Top-level view switcher. -->
-  <div class="game-tabs" id="view-tabs">
-    <button class="game-tab" data-view="chatroom">💬 <span data-i18n="tabChat">聊天室</span></button>
-    <button class="game-tab active" data-view="dww">🐾 <span data-i18n="tabDww">大胃王</span></button>
-    <button class="game-tab" data-view="soon">🚀 <span data-i18n="tabStar">星际旅行</span></button>
+  <!-- ======================= Voice hall (main screen) ======================= -->
+  <section id="view-chatroom" class="hall">
+
+    <header class="hall-head">
+      <!-- vertical calligraphy title -->
+      <div class="hall-title">
+        <span class="hall-title-main">不期而遇</span>
+        <span class="hall-title-sub">遇见你，是最美的意外</span>
+      </div>
+
+      <!-- round room badge -->
+      <div class="hall-badge">
+        <span class="hall-badge-wave">⌁⌁⌁ 语音厅 ⌁⌁⌁</span>
+        <div class="hall-badge-circle">
+          <span class="hall-badge-en">Bu Qi</span>
+          <span class="hall-badge-name">不期而遇</span>
+          <span class="hall-badge-id">ID: 10286</span>
+        </div>
+        <span class="hall-badge-count"><span id="seat-count">0/9</span> 🪑</span>
+      </div>
+
+      <!-- hanging ribbon -->
+      <div class="hall-ribbon"><span>👑</span>优<br>质<br>推<br>荐</div>
+    </header>
+
+    <!-- mic seats (renderSeats fills this) -->
+    <div id="seats" class="seats"></div>
+
+    <!-- gift / win announcements ticker -->
+    <div id="hall-ticker" class="hall-ticker" hidden></div>
+
+    <!-- chat + dock -->
+    <div id="chat-float" class="hall-chat">
+      <div class="chat-float-head">
+        <div class="chat-cats" id="chat-cats">
+          <button class="chat-cat active" data-cat="all" data-i18n="catAll">全部</button>
+          <button class="chat-cat" data-cat="chat" data-i18n="catPeople">聊天</button>
+          <button class="chat-cat" data-cat="gift" data-i18n="catInteract">互动</button>
+          <button class="chat-cat" data-cat="game" data-i18n="catOther">其它</button>
+        </div>
+        <button id="chat-float-min" class="chat-float-min" aria-label="minimize" hidden>—</button>
+      </div>
+      <ul id="chat-list" class="chat-list"></ul>
+
+      <div id="emoji-strip" class="emoji-strip" hidden></div>
+
+      <form id="chat-form" class="chat-form hall-dock">
+        <input id="chat-input" type="text" maxlength="200" data-i18n-ph="chatPlaceholder"
+               placeholder="打招呼…" autocomplete="off">
+        <button type="submit" class="dock-send" data-i18n-title="send" aria-label="send">➤</button>
+        <button type="button" class="dock-btn" id="dock-emoji" aria-label="emoji">☺</button>
+        <button type="button" class="dock-btn" id="dock-mic" aria-label="mic">🎙️</button>
+        <button type="button" class="dock-btn" id="dock-sound" aria-label="sound">🔊</button>
+        <button type="button" class="dock-btn" id="dock-more" aria-label="more">⋯</button>
+        <button type="button" class="dock-btn" id="dock-game" aria-label="games">🎮</button>
+        <button type="button" class="dock-gift" id="dock-gift" aria-label="gift">🎁</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ======================= More sheet: online players + boards ======================= -->
+  <div id="more-sheet" class="panel" hidden>
+    <div class="panel-inner">
+      <div class="gift-head">
+        <h2 data-i18n="rankings">榜单</h2>
+        <button id="more-close" class="gift-x" aria-label="close">✕</button>
+      </div>
+
+      <section class="card">
+        <h2 class="admin-h2">🟢 <span data-i18n="onlinePeople">在线玩家</span>
+          <span class="panel-tag" id="online-count">0</span></h2>
+        <div id="online-list" class="online-list"></div>
+      </section>
+
+      <section class="card">
+        <div class="lb-head">
+          <h2 class="admin-h2">🏅 <span data-i18n="rankings">榜单</span></h2>
+          <div class="lb-tabs" id="gift-tabs">
+            <button class="lb-tab active" data-board="wealth" data-i18n="wealth">财富榜</button>
+            <button class="lb-tab" data-board="charm" data-i18n="charm">魅力榜</button>
+            <button class="lb-tab" data-board="feed" data-i18n="giftFeed">送礼记录</button>
+          </div>
+        </div>
+        <ol id="gift-board" class="lb-list"></ol>
+      </section>
+    </div>
   </div>
 
-  <!-- ======================= ChatRoom view ======================= -->
-  <section id="view-chatroom" class="game-view" hidden>
-    <section class="card room">
-      <h2 class="admin-h2">🪑 <span data-i18n="onlineRoom">在线房间</span>
-        <span class="panel-tag" id="seat-count">0/9</span></h2>
-      <div id="seats" class="seats"></div>
-      <p class="hint" data-i18n="giftHint">点击座位上的用户可送礼物 🎁</p>
-    </section>
+  <!-- ======================= Game drawer (slides in from the right) ======================= -->
+  <button id="game-handle" class="game-handle" aria-label="open games">🎮<span>游戏</span></button>
 
-    <!-- Everyone currently online -->
-    <section class="card">
-      <h2 class="admin-h2">🟢 <span data-i18n="onlinePeople">在线玩家</span>
-        <span class="panel-tag" id="online-count">0</span></h2>
-      <div id="online-list" class="online-list"></div>
-    </section>
-
-    <!-- Wealth / Charm / gift feed -->
-    <section class="card">
-      <div class="lb-head">
-        <h2 class="admin-h2">🏅 <span data-i18n="rankings">榜单</span></h2>
-        <div class="lb-tabs" id="gift-tabs">
-          <button class="lb-tab active" data-board="wealth" data-i18n="wealth">财富榜</button>
-          <button class="lb-tab" data-board="charm" data-i18n="charm">魅力榜</button>
-          <button class="lb-tab" data-board="feed" data-i18n="giftFeed">送礼记录</button>
-        </div>
+  <aside id="game-drawer" class="game-drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <button id="drawer-close" class="drawer-close">‹ <span data-i18n="backHall">返回大厅</span></button>
+      <div class="game-tabs" id="view-tabs">
+        <button class="game-tab active" data-view="dww">🐾 <span data-i18n="tabDww">大胃王</span></button>
+        <button class="game-tab" data-view="soon">🚀 <span data-i18n="tabStar">星际旅行</span></button>
       </div>
-      <ol id="gift-board" class="lb-list"></ol>
-    </section>
-  </section>
+    </div>
+
+    <div class="drawer-body">
 
   <!-- ======================= Star Travel ======================= -->
   <section id="view-soon" class="game-view star-layout" hidden>
@@ -207,29 +273,15 @@
     </aside>
   </div>
 
+    </div><!-- /drawer-body -->
+  </aside><!-- /game-drawer -->
+
   <p id="toast" class="toast" hidden></p>
   <div id="announce" class="announce" hidden></div>
 
-  <!-- Floating chat — available on every tab, minimizes to a bubble so it
-       never interrupts play. -->
-  <button id="chat-fab" class="chat-fab">💬<span id="chat-fab-dot" class="chat-fab-dot" hidden></span></button>
-  <div id="chat-float" class="chat-float" hidden>
-    <div class="chat-float-head">
-      <div class="chat-cats" id="chat-cats">
-        <button class="chat-cat active" data-cat="all" data-i18n="catAll">全部</button>
-        <button class="chat-cat" data-cat="chat" data-i18n="catPeople">玩家</button>
-        <button class="chat-cat" data-cat="gift" data-i18n="giftFeed">送礼记录</button>
-        <button class="chat-cat" data-cat="game" data-i18n="catGame">游戏</button>
-      </div>
-      <button id="chat-float-min" class="chat-float-min" aria-label="minimize">—</button>
-    </div>
-    <ul id="chat-list" class="chat-list"></ul>
-    <form id="chat-form" class="chat-form">
-      <input id="chat-input" type="text" maxlength="200" data-i18n-ph="chatPlaceholder"
-             placeholder="说点什么…" autocomplete="off">
-      <button type="submit" class="chat-send" data-i18n="send">发送</button>
-    </form>
-  </div>
+  <!-- Legacy chat bubble — the chat now lives in the hall; kept (hidden) so
+       existing wiring in app.js stays valid. -->
+  <button id="chat-fab" class="chat-fab" hidden>💬<span id="chat-fab-dot" class="chat-fab-dot" hidden></span></button>
 </div>
 
 <!-- ===================== Pull-into-seat picker (seat admins) ===================== -->

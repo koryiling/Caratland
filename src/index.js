@@ -513,10 +513,25 @@ async function handle(request, env) {
     const { results = [] } = await db.prepare(
       'SELECT id, username, color, avatar, seat FROM users WHERE seat IS NOT NULL'
     ).all();
+
+    // Charm (total gift value received) per seated user — the 💚 under each mic.
+    let charm = new Map();
+    const seatedIds = results.map((u) => u.id);
+    if (seatedIds.length) {
+      const marks = seatedIds.map(() => '?').join(',');
+      const { results: charmRows = [] } = await db.prepare(
+        `SELECT to_id AS uid, SUM(received) AS total FROM gifts WHERE to_id IN (${marks}) GROUP BY to_id`
+      ).bind(...seatedIds).all();
+      charm = new Map(charmRows.map((r) => [r.uid, r.total]));
+    }
+
     const seats = Array.from({ length: 9 }, () => null);
     for (const u of results) {
       if (u.seat >= 1 && u.seat <= 9) {
-        seats[u.seat - 1] = { userId: u.id, username: u.username, color: u.color, avatar: u.avatar ?? '🐰' };
+        seats[u.seat - 1] = {
+          userId: u.id, username: u.username, color: u.color,
+          avatar: u.avatar ?? '🐰', charm: charm.get(u.id) ?? 0,
+        };
       }
     }
 

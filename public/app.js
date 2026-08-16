@@ -717,9 +717,13 @@ function renderSeats(seats, mySeat) {
 
     if (occ) {
       seat.innerHTML = `
-        <span class="seat-avatar" style="border-color:${occ.color}">${occ.avatar}</span>
-        <span class="seat-name"></span>`;
-      seat.querySelector('.seat-name').textContent = occ.username;
+        <span class="seat-ring" style="border-color:${occ.color}">
+          <span class="seat-avatar">${occ.avatar}</span>
+          <span class="seat-mic">🎙️</span>
+        </span>
+        <span class="seat-name"></span>
+        <span class="seat-hearts">💚 ${num.format(occ.charm ?? 0)}</span>`;
+      seat.querySelector('.seat-name').textContent = `${n}.${occ.username}`;
       if (mine) {
         const leave = document.createElement('button');
         leave.className = 'seat-btn leave';
@@ -741,7 +745,10 @@ function renderSeats(seats, mySeat) {
         }
       }
     } else {
-      seat.innerHTML = `<span class="seat-num">${n}</span>`;
+      seat.innerHTML = `
+        <span class="seat-ring open"><span class="seat-mic-ghost">🎙️</span></span>
+        <span class="seat-name">${n}.${t('micSeat')}</span>
+        <span class="seat-hearts">💚 0</span>`;
       // Admin-only seats: only admins / super may sit.
       if (!isAdminSeat || iAmAdmin) {
         const sit = document.createElement('button');
@@ -892,7 +899,24 @@ function renderChat(messages) {
     state.lastChatId = top.id;
   }
 
+  renderTicker(messages);
   renderChatFiltered();
+}
+
+// Hall ticker — the newest few gift / win announcements as floating pills.
+function renderTicker(messages) {
+  const ticker = $('hall-ticker');
+  if (!ticker) return;
+  const lines = messages.filter(isGiftKind).slice(-3).reverse();
+  ticker.hidden = !lines.length;
+  ticker.replaceChildren(...lines.map((m) => {
+    const div = document.createElement('div');
+    div.className = 'tick';
+    div.innerHTML = `<span class="tick-ic">🎁</span><span class="tick-text"></span>`;
+    div.querySelector('.tick-text').textContent =
+      m.kind === 'bcast' ? bcastText(m.text) : giftLineText(m.text);
+    return div;
+  }));
 }
 
 // Category filter: all / chat (msg only) / gift (gift lines only).
@@ -1301,6 +1325,65 @@ els.pastResults.addEventListener('click', async () => {
   } catch (error) { toast(tError(error)); }
 });
 
+/* ---- Voice-hall dock & game drawer ---- */
+
+const EMOJIS = ['😀', '😂', '🥰', '😎', '🤗', '😭', '👍', '🙏', '🎉', '💚', '🌸', '🦋', '🍀', '🌙', '⭐', '🔥'];
+const emojiStrip = $('emoji-strip');
+if (emojiStrip) {
+  emojiStrip.replaceChildren(...EMOJIS.map((e) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'emoji-opt';
+    b.textContent = e;
+    b.addEventListener('click', () => { els.chatInput.value += e; els.chatInput.focus(); });
+    return b;
+  }));
+  $('dock-emoji').addEventListener('click', () => { emojiStrip.hidden = !emojiStrip.hidden; });
+}
+
+const drawer = $('game-drawer');
+function setDrawer(open) {
+  drawer.classList.toggle('open', open);
+  drawer.setAttribute('aria-hidden', String(!open));
+  document.body.classList.toggle('drawer-open', open);
+  if (open) loadRoundTop?.();
+}
+$('game-handle')?.addEventListener('click', () => setDrawer(true));
+$('dock-game')?.addEventListener('click', () => setDrawer(true));
+$('drawer-close')?.addEventListener('click', () => setDrawer(false));
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') setDrawer(false);
+});
+
+// Swipe: leftward from the right edge opens the game; rightward closes it.
+let touchX = null, touchY = null;
+document.addEventListener('touchstart', (e) => {
+  touchX = e.touches[0].clientX;
+  touchY = e.touches[0].clientY;
+}, { passive: true });
+document.addEventListener('touchend', (e) => {
+  if (touchX == null) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  const dy = e.changedTouches[0].clientY - touchY;
+  if (Math.abs(dx) > 70 && Math.abs(dy) < 60) {
+    if (dx < 0 && touchX > window.innerWidth - 48) setDrawer(true);
+    else if (dx > 0 && drawer.classList.contains('open')) setDrawer(false);
+  }
+  touchX = null;
+}, { passive: true });
+
+// Dock buttons: gift panel, more sheet, decorative voice toggles.
+$('dock-gift')?.addEventListener('click', () => openGiftModal());
+$('dock-more')?.addEventListener('click', () => { $('more-sheet').hidden = false; loadGiftBoard(); });
+$('more-close')?.addEventListener('click', () => { $('more-sheet').hidden = true; });
+$('more-sheet')?.addEventListener('click', (e) => { if (e.target === $('more-sheet')) $('more-sheet').hidden = true; });
+for (const id of ['dock-mic', 'dock-sound']) {
+  $(id)?.addEventListener('click', function () {
+    this.classList.toggle('off');
+    toast(t('voiceSoon'));
+  });
+}
+
 /* ---- Boot ---- */
 
 async function enterGame(user) {
@@ -1308,6 +1391,7 @@ async function enterGame(user) {
   state.config = await api('/api/config');
   els.authScreen.hidden = true;
   els.gameScreen.hidden = false;
+  document.body.classList.add('in-hall');   // jade-garden backdrop
   state.started = true;
 
   buildBoard();
@@ -1322,6 +1406,7 @@ async function enterGame(user) {
   await loadRequestStatus();
   await loadRoom();
   await loadGiftCatalog();
+  loadGiftBoard();
 
   setInterval(tickClock, 200);
   setInterval(poll, 30_000);

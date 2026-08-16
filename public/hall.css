@@ -1,0 +1,613 @@
+/* ============================================================
+   Voice-hall theme — 不期而遇 语音厅
+   Jade-garden look for the main screen; the games live in a
+   drawer that slides in from the right (styles.css untouched).
+   ============================================================ */
+
+:root {
+  --jade-ink: #375233;
+  --jade-soft: #5c7a52;
+  --jade-line: rgba(255, 255, 255, 0.65);
+  --jade-glass: rgba(255, 255, 255, 0.38);
+  --jade-glass-2: rgba(255, 255, 255, 0.55);
+  --jade-deep: #4c7040;
+  --jade-gold: #c9a94f;
+}
+
+/* ---------- backdrop: soft jade garden with a moon gate ---------- */
+
+body.in-hall {
+  background:
+    radial-gradient(42rem 30rem at 85% 12%, rgba(255, 255, 250, 0.55), transparent 60%),
+    radial-gradient(30rem 24rem at 8% 85%, rgba(214, 232, 193, 0.7), transparent 65%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 1200' preserveAspectRatio='xMidYMid slice'%3E%3Ccircle cx='610' cy='400' r='265' fill='rgba(255,255,255,0.16)' stroke='rgba(255,255,255,0.5)' stroke-width='14'/%3E%3Ccircle cx='610' cy='400' r='230' fill='none' stroke='rgba(255,255,255,0.28)' stroke-width='3'/%3E%3Cg opacity='0.85'%3E%3Cline x1='95' y1='0' x2='95' y2='58' stroke='rgba(90,110,70,0.5)' stroke-width='3'/%3E%3Cellipse cx='95' cy='104' rx='34' ry='46' fill='rgba(250,240,205,0.85)'/%3E%3Crect x='75' y='52' width='40' height='10' rx='5' fill='rgba(160,140,80,0.7)'/%3E%3Crect x='75' y='146' width='40' height='9' rx='4' fill='rgba(160,140,80,0.7)'/%3E%3Cline x1='95' y1='155' x2='95' y2='192' stroke='rgba(160,140,80,0.6)' stroke-width='2'/%3E%3Ccircle cx='95' cy='197' r='5' fill='rgba(201,169,79,0.8)'/%3E%3C/g%3E%3Cg fill='rgba(111,148,85,0.30)'%3E%3Crect x='6' y='0' width='12' height='1200' rx='6'/%3E%3Crect x='30' y='120' width='9' height='1080' rx='4'/%3E%3Cellipse cx='58' cy='300' rx='46' ry='11' transform='rotate(-28 58 300)'/%3E%3Cellipse cx='44' cy='352' rx='42' ry='10' transform='rotate(18 44 352)'/%3E%3Cellipse cx='66' cy='620' rx='48' ry='11' transform='rotate(-18 66 620)'/%3E%3Cellipse cx='50' cy='680' rx='40' ry='10' transform='rotate(24 50 680)'/%3E%3Crect x='778' y='300' width='12' height='900' rx='6'/%3E%3Crect x='756' y='430' width='8' height='770' rx='4'/%3E%3Cellipse cx='742' cy='560' rx='46' ry='11' transform='rotate(24 742 560)'/%3E%3Cellipse cx='752' cy='840' rx='48' ry='11' transform='rotate(-22 752 840)'/%3E%3Cellipse cx='730' cy='905' rx='40' ry='10' transform='rotate(14 730 905)'/%3E%3C/g%3E%3Cg fill='rgba(255,255,255,0.35)'%3E%3Ccircle cx='250' cy='210' r='4'/%3E%3Ccircle cx='320' cy='640' r='3'/%3E%3Ccircle cx='540' cy='170' r='3'/%3E%3Ccircle cx='650' cy='760' r='4'/%3E%3Ccircle cx='180' cy='900' r='3'/%3E%3C/g%3E%3C/svg%3E")
+      center / cover no-repeat fixed,
+    linear-gradient(168deg, #eef4e1 0%, #d9e7c4 34%, #bcd4a4 68%, #a3c48f 100%) fixed;
+}
+
+/* floating butterflies */
+body.in-hall #view-chatroom::before,
+body.in-hall #view-chatroom::after {
+  content: '🦋';
+  position: fixed;
+  font-size: 1.15rem;
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 1;
+  animation: hall-flutter 9s ease-in-out infinite;
+}
+body.in-hall #view-chatroom::before { left: 6%; top: 30%; }
+body.in-hall #view-chatroom::after { right: 8%; top: 62%; animation-delay: -4.5s; }
+@keyframes hall-flutter {
+  0%, 100% { transform: translate(0, 0) rotate(-8deg); }
+  25% { transform: translate(10px, -16px) rotate(8deg); }
+  50% { transform: translate(-6px, -30px) rotate(-6deg); }
+  75% { transform: translate(-14px, -12px) rotate(10deg); }
+}
+
+/* ---------- top bar: glassy ---------- */
+
+body.in-hall .topbar .icon-btn,
+body.in-hall .topbar .coins-chip,
+body.in-hall .topbar .identity {
+  background: var(--jade-glass);
+  border: 1px solid var(--jade-line);
+  color: var(--jade-ink);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+/* The trophy/panel toggle only matters inside the game drawer. */
+body.in-hall:not(.drawer-open) #side-toggle { display: none; }
+
+/* ---------- hall column ---------- */
+
+.hall {
+  position: relative;
+  width: min(100%, 520px);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  min-height: calc(100dvh - 6.5rem);
+  padding-bottom: 0.4rem;
+}
+
+/* ---------- header: title / badge / ribbon ---------- */
+
+.hall-head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+  min-height: 148px;
+  margin-top: 0.3rem;
+}
+
+.hall-title {
+  display: flex;
+  gap: 0.45rem;
+  justify-self: start;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  height: 158px;
+}
+.hall-title-main {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: 'STKaiti', 'KaiTi', 'DFKai-SB', 'Noto Serif SC', serif;
+  font-size: 2.05rem;
+  font-weight: 700;
+  letter-spacing: 0.28rem;
+  color: #3d5c36;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.hall-title-sub {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 0.66rem;
+  letter-spacing: 0.22rem;
+  color: var(--jade-soft);
+  padding-top: 0.4rem;
+}
+
+.hall-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+.hall-badge-wave {
+  font-size: 0.7rem;
+  letter-spacing: 0.35rem;
+  color: var(--jade-soft);
+  white-space: nowrap;
+}
+.hall-badge-circle {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.30) 70%);
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 6px 22px rgba(90, 120, 70, 0.25), 0 0 0 6px rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+.hall-badge-en {
+  font-family: 'Segoe Script', 'Brush Script MT', cursive;
+  font-size: 1.15rem;
+  color: #56744c;
+}
+.hall-badge-name { font-size: 0.86rem; font-weight: 700; color: var(--jade-ink); }
+.hall-badge-id { font-size: 0.68rem; color: var(--jade-soft); }
+.hall-badge-count { font-size: 0.68rem; color: var(--jade-soft); }
+
+.hall-ribbon {
+  justify-self: end;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.55rem 0.5rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08rem;
+  color: #5d5027;
+  line-height: 1.25;
+  background: linear-gradient(180deg, #f2ead0, #e4d9b4);
+  border: 1px solid rgba(190, 170, 110, 0.6);
+  border-radius: 0 0 10px 10px;
+  box-shadow: 0 4px 12px rgba(120, 110, 60, 0.25);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), 50% 100%, 0 calc(100% - 9px));
+  margin-top: -0.35rem;
+}
+.hall-ribbon span { font-size: 0.85rem; }
+
+/* ---------- mic seats ---------- */
+
+.hall .seats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.05rem 0.6rem;
+  padding: 0.2rem 0.4rem;
+  position: relative;
+  z-index: 2;
+}
+
+.hall .seat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.22rem;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+}
+.hall .seat:hover { background: none; border: none; }
+.hall .seat.giftable:hover { background: none; border-color: transparent; }
+
+.hall .seat-ring {
+  position: relative;
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.22) 72%);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 14px rgba(90, 120, 70, 0.22), inset 0 0 12px rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.hall .seat.taken .seat-ring {
+  background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.45) 75%);
+}
+.hall .seat.mine .seat-ring { box-shadow: 0 0 0 3px rgba(122, 168, 78, 0.55), 0 4px 14px rgba(90, 120, 70, 0.25); }
+
+.hall .seat-avatar {
+  width: auto;
+  height: auto;
+  border: none;
+  background: none;
+  font-size: 2.35rem;
+  line-height: 1;
+}
+
+/* small green mic bubble at the ring's bottom */
+.hall .seat-mic {
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #8fbc6e, #64934a);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  box-shadow: 0 2px 6px rgba(70, 100, 50, 0.4);
+}
+.hall .seat-mic-ghost { font-size: 1.5rem; opacity: 0.4; filter: grayscale(0.4); }
+
+.hall .seat-name {
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--jade-ink);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.hall .seat-hearts {
+  font-size: 0.68rem;
+  color: var(--jade-soft);
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+/* sit / leave pills float over the ring */
+.hall .seat-btn {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  padding: 0.14rem 0.55rem;
+  font-size: 0.68rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(76, 112, 64, 0.82);
+  color: #fff;
+  backdrop-filter: blur(3px);
+  box-shadow: 0 2px 8px rgba(60, 90, 50, 0.35);
+}
+.hall .seat-btn.leave { background: rgba(255, 255, 255, 0.75); color: var(--jade-soft); border-color: rgba(150, 170, 130, 0.6); }
+
+.hall .seat-kick {
+  position: absolute;
+  top: -4px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(200, 120, 110, 0.6);
+  color: #b0564c;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 0.6rem;
+  line-height: 1;
+}
+.hall .seat-crown { top: -6px; left: 12px; font-size: 0.95rem; }
+.hall .seat.admin-seat .seat-ring { border-color: var(--jade-gold); box-shadow: 0 0 0 2px rgba(201, 169, 79, 0.4), 0 4px 14px rgba(90, 120, 70, 0.22); }
+.hall .seat-mode {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 0.62rem;
+  line-height: 1;
+}
+
+/* ---------- announcement ticker ---------- */
+
+.hall-ticker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: auto;   /* pin above chat, pushing seats up */
+}
+.hall-ticker .tick {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.34rem 0.7rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.25));
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  font-size: 0.74rem;
+  color: var(--jade-ink);
+  box-shadow: 0 2px 8px rgba(90, 120, 70, 0.12);
+  animation: tick-in 0.5s ease;
+}
+@keyframes tick-in { from { opacity: 0; transform: translateY(8px); } }
+.hall-ticker .tick-ic {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+.hall-ticker .tick-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- chat + dock ---------- */
+
+.hall-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  position: relative;
+  z-index: 2;
+}
+.hall-chat .chat-float-head {
+  padding: 0;
+  border: none;
+  background: none;
+}
+.hall-chat .chat-cats {
+  display: flex;
+  gap: 0.45rem;
+}
+.hall-chat .chat-cat {
+  padding: 0.32rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.35);
+  color: var(--jade-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.hall-chat .chat-cat.active {
+  background: rgba(76, 112, 64, 0.85);
+  border-color: rgba(76, 112, 64, 0.85);
+  color: #fff;
+}
+
+.hall-chat .chat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.2rem 0.1rem;
+  max-height: 30dvh;
+  min-height: 4.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  scrollbar-width: thin;
+}
+.hall-chat .chat-empty { color: var(--jade-soft); font-size: 0.8rem; padding: 0.4rem 0.2rem; }
+
+.hall-chat .chat-msg {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+}
+.hall-chat .chat-avatar {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+.hall-chat .chat-body {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 4px 14px 14px 14px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  max-width: 85%;
+}
+.hall-chat .chat-msg.me .chat-body { background: rgba(205, 227, 180, 0.75); }
+.hall-chat .chat-who { font-size: 0.68rem; font-weight: 700; }
+.hall-chat .chat-text { font-size: 0.84rem; color: #2f4429; word-break: break-word; }
+
+.hall-chat .chat-gift,
+.hall-chat .chat-bcast {
+  align-self: stretch;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  color: #6b5a20;
+  background: linear-gradient(90deg, rgba(244, 232, 189, 0.8), rgba(244, 232, 189, 0.4));
+  border: 1px solid rgba(210, 190, 120, 0.5);
+}
+
+/* emoji strip */
+.emoji-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.4rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.emoji-opt {
+  border: none;
+  background: none;
+  font-size: 1.25rem;
+  padding: 0.15rem;
+  border-radius: 8px;
+}
+.emoji-opt:hover { background: rgba(255, 255, 255, 0.7); }
+
+/* the dock */
+.hall-dock {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0;
+  border: none;
+  background: none;
+}
+.hall-dock input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--jade-ink);
+  font-size: 0.9rem;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.hall-dock input::placeholder { color: #79906d; }
+.hall-dock input:focus { outline: 2px solid rgba(122, 168, 78, 0.5); }
+
+.dock-send,
+.dock-btn {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--jade-deep);
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(90, 120, 70, 0.15);
+}
+.dock-send { font-size: 0.9rem; }
+.dock-btn.off { opacity: 0.45; }
+.dock-btn:active, .dock-send:active { transform: scale(0.92); }
+
+.dock-gift {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 235, 180, 0.9);
+  background: radial-gradient(circle at 32% 28%, #f7e9bd, #dfc47c);
+  font-size: 1.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(160, 130, 60, 0.35);
+}
+.dock-gift:active { transform: scale(0.92); }
+
+/* very narrow phones: let the input shrink first, keep all buttons */
+@media (max-width: 380px) {
+  .dock-btn { width: 34px; height: 34px; font-size: 0.95rem; }
+  .dock-gift { width: 42px; height: 42px; }
+}
+
+/* ---------- game drawer ---------- */
+
+.game-handle {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 34;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.65rem 0.45rem 0.65rem 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-right: none;
+  border-radius: 14px 0 0 14px;
+  background: rgba(76, 112, 64, 0.85);
+  color: #fff;
+  font-size: 1.05rem;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: -3px 3px 12px rgba(60, 90, 50, 0.3);
+}
+.game-handle span {
+  writing-mode: vertical-rl;
+  font-size: 0.72rem;
+  letter-spacing: 0.2rem;
+}
+body.drawer-open .game-handle { display: none; }
+
+.game-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 35;
+  width: min(100vw, 1080px);
+  transform: translateX(102%);
+  transition: transform 0.35s cubic-bezier(0.25, 0.9, 0.3, 1);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background:
+    linear-gradient(rgba(255, 251, 235, 0.20), rgba(255, 251, 235, 0.20)),
+    url('bg.jpg') center / cover no-repeat fixed,
+    linear-gradient(160deg, #fdf3d9, #f8e3c0);
+  box-shadow: -12px 0 40px rgba(60, 80, 50, 0.35);
+}
+.game-drawer.open { transform: translateX(0); }
+
+.drawer-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.8rem;
+  background: rgba(255, 251, 235, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(190, 170, 120, 0.35);
+}
+.drawer-close {
+  flex: none;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(150, 170, 130, 0.5);
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--jade-deep);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.drawer-head .game-tabs { margin: 0; flex: 1; }
+
+.drawer-body {
+  width: 100%;
+  max-width: 1020px;
+  margin: 0 auto;
+  padding: 0.8rem;
+}
+
+/* keep toast readable above the drawer */
+.toast { z-index: 70; }
+
+/* ---------- more sheet ---------- */
+
+#more-sheet .card { margin-top: 0.7rem; }
