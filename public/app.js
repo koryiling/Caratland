@@ -3,6 +3,7 @@
 // renders what it is told and forwards bets.
 
 import { applyStatic, setLang, t, tError, toggleLang, lang } from './i18n.js';
+import { giftFly, bigGiftFx } from './fx.js';
 
 const TOKEN_KEY = 'dww.token';
 const COLORS = [
@@ -74,6 +75,7 @@ const state = {
   bag: [],
   lastChatId: 0,
   lastBcastId: 0,
+  lastFxId: 0,
   gifts: [],
   giftBoard: 'wealth',
   chip: CHIP_VALUES[0],
@@ -714,6 +716,7 @@ function renderSeats(seats, mySeat) {
     const seat = document.createElement('div');
     const mine = occ && occ.userId === state.me?.id;
     seat.className = `seat ${occ ? 'taken' : 'empty'} ${mine ? 'mine' : ''} ${isAdminSeat ? 'admin-seat' : ''}`;
+    if (occ) seat.dataset.uname = occ.username;   // gift-effect target lookup
 
     if (occ) {
       seat.innerHTML = `
@@ -901,6 +904,35 @@ function renderChat(messages) {
 
   renderTicker(messages);
   renderChatFiltered();
+  playNewGiftFx(messages);
+}
+
+// Animate gifts that arrived since the previous poll. The first render after
+// page load only fast-forwards the cursor so history doesn't replay.
+function playNewGiftFx(messages) {
+  const newestId = messages.length ? messages[messages.length - 1].id : 0;
+  const firstLoad = state.lastFxId === 0;
+  if (!firstLoad) {
+    for (const m of messages) {
+      if (m.id > state.lastFxId && isGiftKind(m)) playGiftFx(m);
+    }
+  }
+  state.lastFxId = Math.max(state.lastFxId, newestId, 1);
+}
+
+function playGiftFx(m) {
+  let g;
+  try { g = JSON.parse(m.text); } catch { return; }
+
+  // Game wins: Star Travel jackpots get the fullscreen burst; wheel wins
+  // already have the sliding banner.
+  if (g.type === 'star') return bigGiftFx({ emoji: g.emoji, tier: g.tier });
+  if (g.type === 'wheel') return;
+
+  if (!g.emoji) return;
+  const seat = [...els.seats.querySelectorAll('.seat.taken')].find((s) => s.dataset.uname === g.to);
+  giftFly({ emoji: g.emoji, value: g.cost ?? 0, targetEl: seat?.querySelector('.seat-ring') });
+  if (g.tier) bigGiftFx({ emoji: g.emoji, tier: g.tier });
 }
 
 // Hall ticker — the newest few gift / win announcements as floating pills.
@@ -1140,6 +1172,7 @@ async function sendGift(gift) {
     renderProfile();
     toast(t('giftSent').replace('{gift}', `${gift.emoji}×${sent}`).replace('{name}', `${sent}`));
     loadGiftBoard();
+    loadRoom();   // pull the gift message now so the effect plays immediately
   }
 }
 
@@ -1165,6 +1198,7 @@ async function sendBagItem(item) {
     renderGiftGrid();
     toast(t('giftSent').replace('{gift}', `${item.emoji}×${sent}`).replace('{name}', `${sent}`));
     loadGiftBoard();
+    loadRoom();   // pull the gift message now so the effect plays immediately
   }
 }
 
