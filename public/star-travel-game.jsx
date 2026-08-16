@@ -255,73 +255,39 @@ export default function App() {
   const spinTimer = useRef(null);
   useEffect(() => () => clearTimeout(spinTimer.current), []);
 
-  // Keep the game's gold in lock-step with the real account balance.
+  // The server owns all balances. This client only reflects what the server
+  // returns from /api/state and from each buy/voyage/wish call — it never
+  // computes a balance change itself, so nothing here can be spoofed.
   const authTok = (typeof localStorage !== "undefined" && localStorage.getItem("dww.token")) || "";
-  const syncedGold = useRef(null);
-  // Stars and moons are persisted to the account too, so a purchase survives
-  // navigating to the wheel or chat room and back.
-  const syncedStars = useRef(null);
-  const syncedMoons = useRef(null);
-  const syncedSuns = useRef(null);
-  useEffect(() => {
+  const api = (path, body) =>
+    fetch(path, {
+      method: "POST",
+      headers: { authorization: "Bearer " + authTok, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }).then(async (r) => {
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || "✗");
+      return d;
+    });
+
+  // Apply the authoritative user object the server returns everywhere.
+  const applyUser = (u) => {
+    if (!u) return;
+    setMe(u);
+    setGold(u.coins);
+    setStars(u.stars ?? 0);
+    setMoons(u.moons ?? 0);
+    setSuns(u.suns ?? 0);
+  };
+
+  function refreshMe() {
     if (!authTok) return;
     fetch("/api/state", { headers: { authorization: "Bearer " + authTok } })
       .then((r) => r.json())
-      .then((d) => {
-        if (d && d.me) {
-          setMe(d.me);
-          syncedGold.current = d.me.coins; setGold(d.me.coins);
-          syncedStars.current = d.me.stars ?? 0; setStars(d.me.stars ?? 0);
-          syncedMoons.current = d.me.moons ?? 0; setMoons(d.me.moons ?? 0);
-          syncedSuns.current = d.me.suns ?? 0; setSuns(d.me.suns ?? 0);
-        }
-      })
+      .then((d) => { if (d && d.me) applyUser(d.me); })
       .catch(() => {});
-  }, []);
-  useEffect(() => {
-    if (!authTok || syncedGold.current === null) return;
-    const delta = gold - syncedGold.current;
-    if (delta === 0) return;
-    syncedGold.current = gold;
-    fetch("/api/coins/adjust", {
-      method: "POST",
-      headers: { authorization: "Bearer " + authTok, "content-type": "application/json" },
-      body: JSON.stringify({ delta }),
-    }).catch(() => {});
-  }, [gold]);
-  useEffect(() => {
-    if (!authTok || syncedStars.current === null) return;
-    const delta = stars - syncedStars.current;
-    if (delta === 0) return;
-    syncedStars.current = stars;
-    fetch("/api/star-wallet/adjust", {
-      method: "POST",
-      headers: { authorization: "Bearer " + authTok, "content-type": "application/json" },
-      body: JSON.stringify({ starDelta: delta }),
-    }).catch(() => {});
-  }, [stars]);
-  useEffect(() => {
-    if (!authTok || syncedMoons.current === null) return;
-    const delta = moons - syncedMoons.current;
-    if (delta === 0) return;
-    syncedMoons.current = moons;
-    fetch("/api/star-wallet/adjust", {
-      method: "POST",
-      headers: { authorization: "Bearer " + authTok, "content-type": "application/json" },
-      body: JSON.stringify({ moonDelta: delta }),
-    }).catch(() => {});
-  }, [moons]);
-  useEffect(() => {
-    if (!authTok || syncedSuns.current === null) return;
-    const delta = suns - syncedSuns.current;
-    if (delta === 0) return;
-    syncedSuns.current = suns;
-    fetch("/api/star-wallet/adjust", {
-      method: "POST",
-      headers: { authorization: "Bearer " + authTok, "content-type": "application/json" },
-      body: JSON.stringify({ sunDelta: delta }),
-    }).catch(() => {});
-  }, [suns]);
+  }
+  useEffect(() => { refreshMe(); }, []);
 
   // The bag is the shared server inventory (same as the ChatRoom bag).
   // Load it on open, and again whenever the parent tab re-focuses this game,
@@ -353,28 +319,10 @@ export default function App() {
   }
   useEffect(() => {
     loadBag(); loadMembers();
-    const onMsg = (e) => { if (e && e.data === "sync-bag") { loadBag(); loadMembers(); } };
+    const onMsg = (e) => { if (e && e.data === "sync-bag") { loadBag(); loadMembers(); refreshMe(); } };
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
   }, []);
-
-  // Consume bag items on the server (star gift / wishing pool materials).
-  const bagRemove = (key, qty) => {
-    if (!authTok) return;
-    fetch("/api/bag/remove", {
-      method: "POST",
-      headers: { authorization: "Bearer " + authTok, "content-type": "application/json" },
-      body: JSON.stringify({ key: String(key), qty }),
-    }).catch(() => {});
-  };
-  const bagAdd = (key, qty) => {
-    if (!authTok) return;
-    fetch("/api/bag/add", {
-      method: "POST",
-      headers: { authorization: "Bearer " + authTok, "content-type": "application/json" },
-      body: JSON.stringify({ key: String(key), emoji: GIFTS[key].emoji, name: GIFTS[key].zh, value: Number(key), qty }),
-    }).catch(() => {});
-  };
 
   const isStar = mode === "star";
   const MODES = ["star", "moon", "sun"];
@@ -394,47 +342,35 @@ export default function App() {
   const showFlash = (m) => { setFlash(m); setTimeout(() => setFlash(null), 1800); };
 
   function buy(kind, pack) {
+    if (!authTok) return;
     if (gold < pack.gold) return showFlash(t.noGold);
-    setGold((g) => g - pack.gold);
-    if (kind === "star") setStars((s) => s + pack.qty);
-    else if (kind === "moon") setMoons((m) => m + pack.qty);
-    else setSuns((s) => s + pack.qty);
-    const label = kind === "star" ? t.star : kind === "moon" ? t.moon : t.sun;
-    showFlash(`+${pack.qty} ${label}`);
+    api("/api/star/buy", { kind, qty: pack.qty })
+      .then((d) => {
+        applyUser(d.user);
+        const label = kind === "star" ? t.star : kind === "moon" ? t.moon : t.sun;
+        showFlash(`+${pack.qty} ${label}`);
+      })
+      .catch((e) => showFlash(e.message === "insufficient" ? t.noGold : e.message));
   }
 
   function travel(count) {
-    if (spinning) return;
+    if (spinning || !authTok) return;
     if (cfg.cur < count) { showFlash(cfg.noCur); setPanel("shop"); return; }
-    cfg.setCur((c) => c - count);
     setSpinning(true); setResults(null);
+    // The server rolls; we keep the 1.5s rabbit animation for feel, then show
+    // whatever the server actually awarded.
+    const pending = api("/api/star/voyage", { kind: mode, count });
     spinTimer.current = setTimeout(() => {
-      const items = Array.from({ length: count }, () => weightedPick(cfg.rewards));
-      setBag((b) => { const n = { ...b }; items.forEach((g) => (n[g] = (n[g] || 0) + 1)); return n; });
-      // Record winnings into the server bag so they can be gifted in the room.
-      if (authTok) {
-        const counts = {};
-        items.forEach((g) => (counts[g] = (counts[g] || 0) + 1));
-        Object.entries(counts).forEach(([g, qty]) => {
-          fetch("/api/bag/add", {
-            method: "POST",
-            headers: { authorization: "Bearer " + authTok, "content-type": "application/json" },
-            body: JSON.stringify({ key: String(g), emoji: GIFTS[g].emoji, name: GIFTS[g].zh, value: Number(g), qty }),
-          }).catch(() => {});
-        });
-        // Announce big wins (5000+) to everyone, everywhere.
-        items.filter((g) => Number(g) >= 10000).forEach((g) => {
-          fetch("/api/star/announce", {
-            method: "POST",
-            headers: { authorization: "Bearer " + authTok, "content-type": "application/json" },
-            body: JSON.stringify({ emoji: GIFTS[g].emoji, name: GIFTS[g].zh, value: Number(g) }),
-          }).catch(() => {});
-        });
-      }
-      setResults({ items, mode });
-      const big = items.filter((g) => tierOf(g) !== "normal");
-      if (big.length) { const mx = Math.max(...big); setBanner({ gold: mx }); setTimeout(() => setBanner(null), 5000); }
-      setSpinning(false);
+      pending
+        .then((d) => {
+          applyUser(d.user);
+          loadBag();   // reflect the freshly-banked prizes
+          setResults({ items: d.items, mode });
+          const big = d.items.filter((g) => tierOf(g) !== "normal");
+          if (big.length) { const mx = Math.max(...big); setBanner({ gold: mx }); setTimeout(() => setBanner(null), 5000); }
+        })
+        .catch((e) => { showFlash(e.message === cfg.noCur ? cfg.noCur : (e.message || "✗")); setPanel("shop"); })
+        .finally(() => setSpinning(false));
     }, 1500);
   }
 
@@ -458,28 +394,18 @@ export default function App() {
       .catch(() => {});
   }
 
-  // Wishing pool: pledge materials (from bag) toward a target; roll success.
+  // Wishing pool: pledge materials (from bag) toward a target. The server
+  // consumes the materials and rolls; we render its verdict. Returns a promise.
   function doWish(target, materials) {
-    const materialValue = Object.entries(materials).reduce((a, [g, c]) => a + Number(g) * c, 0);
-    const fullCost = wishFullCost(target);
-    const prob = Math.min(1, materialValue / fullCost);
-    const success = Math.random() < prob;
-    setBag((b) => {
-      const n = { ...b };
-      Object.entries(materials).forEach(([g, c]) => { n[g] = (n[g] || 0) - c; if (n[g] <= 0) delete n[g]; });
-      if (success) n[target] = (n[target] || 0) + 1;
-      return n;
-    });
-    // Sync the combine to the shared server bag: materials leave, and on
-    // success the combined item is added (so it shows in the ChatRoom bag and
-    // can be gifted to others).
-    Object.entries(materials).forEach(([g, c]) => bagRemove(g, c));
-    if (success) bagAdd(target, 1);
-    // Failed materials are lost to the house; on success the over-pledge margin is the house cut.
-    setAppProfit((p) => p + (success ? Math.max(0, materialValue - target) : materialValue));
-    setWishLog((l) => [{ target, success, materialValue, prob, ts: Date.now() }, ...l].slice(0, 40));
-    if (success && tierOf(target) !== "normal") { setBanner({ gold: target }); setTimeout(() => setBanner(null), 5000); }
-    return { success, target, materialValue, prob };
+    if (!authTok) return Promise.resolve(null);
+    return api("/api/star/wish", { target, materials })
+      .then((d) => {
+        loadBag();   // materials left; on success the crafted item arrived
+        setWishLog((l) => [{ target, success: d.success, materialValue: d.matValue, prob: d.prob, ts: Date.now() }, ...l].slice(0, 40));
+        if (d.success && tierOf(target) !== "normal") { setBanner({ gold: target }); setTimeout(() => setBanner(null), 5000); }
+        return { success: d.success, target, materialValue: d.matValue, prob: d.prob };
+      })
+      .catch((e) => { showFlash(e.message || "✗"); return null; });
   }
 
   return (
@@ -806,10 +732,11 @@ function WishPanel({ bag, wishLog, members, me, lang, t, onWish, onGift, onClose
   function confirm() {
     if (!target) return;
     if (matValue <= 0) return;
-    const r = onWish(target, mats);
-    setResult(r);
-    setLast({ target, mats: { ...mats } });
+    const snapshot = { ...mats };
     setMats({});
+    Promise.resolve(onWish(target, snapshot)).then((r) => {
+      if (r) { setResult(r); setLast({ target, mats: snapshot }); }
+    });
   }
 
   // "Combine again" with the same content. If the bag still has enough of the
@@ -819,9 +746,9 @@ function WishPanel({ bag, wishLog, members, me, lang, t, onWish, onGift, onClose
     if (!last) return;
     const enough = Object.entries(last.mats).every(([g, c]) => (bag[g] || 0) >= c);
     if (enough) {
-      const r = onWish(last.target, last.mats);
-      setResult(r);
-      setLast({ target: last.target, mats: { ...last.mats } });
+      Promise.resolve(onWish(last.target, last.mats)).then((r) => {
+        if (r) { setResult(r); setLast({ target: last.target, mats: { ...last.mats } }); }
+      });
     } else {
       setResult(null);
       setSending(false);

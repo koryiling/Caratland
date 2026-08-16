@@ -372,6 +372,26 @@ async function flushBets() {
   }
 }
 
+// If the page is closed or navigated away before the 220ms flush timer
+// fires, push the queued bets out with keepalive fetches — otherwise taps
+// that looked placed would silently never reach the server.
+window.addEventListener('pagehide', () => {
+  const batch = state.pending;
+  if (!Object.keys(batch).length) return;
+  state.pending = {};
+  for (const [animalId, amount] of Object.entries(batch)) {
+    fetch('/api/bet', {
+      method: 'POST',
+      keepalive: true,
+      headers: {
+        'content-type': 'application/json',
+        ...(state.token ? { authorization: `Bearer ${state.token}` } : {}),
+      },
+      body: JSON.stringify({ animalId, amount }),
+    }).catch(() => {});
+  }
+});
+
 /* ---- Rendering ---- */
 
 function renderChips() {

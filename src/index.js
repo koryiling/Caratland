@@ -71,6 +71,75 @@ function frameTier(value) {
 const GAME_ANNOUNCE = 10_000;
 const gameTier = (value) => (value >= 50_000 ? 'gold' : value >= 10_000 ? 'silver' : null);
 
+/* ---- Star Travel (server-authoritative) ----
+   The client only renders: purchases, voyage rolls and wishing-pool rolls
+   all happen here, so balances can never be spoofed by the browser.       */
+
+const STAR_REWARDS = [
+  { gold: 5, prob: 0.41903 }, { gold: 10, prob: 0.17053 }, { gold: 50, prob: 0.13155 },
+  { gold: 100, prob: 0.19976 }, { gold: 166, prob: 0.05359 }, { gold: 266, prob: 0.01754 },
+  { gold: 500, prob: 0.00633 }, { gold: 2500, prob: 0.00136 }, { gold: 5200, prob: 0.00031 },
+];
+const MOON_REWARDS = [
+  { gold: 10, prob: 0.29488 }, { gold: 50, prob: 0.28012 }, { gold: 100, prob: 0.20149 },
+  { gold: 266, prob: 0.14743 }, { gold: 500, prob: 0.05406 }, { gold: 1000, prob: 0.01573 },
+  { gold: 2500, prob: 0.00452 }, { gold: 6600, prob: 0.00147 }, { gold: 28800, prob: 0.00026 },
+  { gold: 52000, prob: 0.00007 },
+];
+const SUN_REWARDS = [
+  { gold: 500, prob: 0.36637 }, { gold: 1000, prob: 0.36855 }, { gold: 2500, prob: 0.18210 },
+  { gold: 5200, prob: 0.05094 }, { gold: 6600, prob: 0.02385 }, { gold: 28800, prob: 0.00455 },
+  { gold: 33440, prob: 0.00228 }, { gold: 52000, prob: 0.00103 }, { gold: 131400, prob: 0.00027 },
+  { gold: 334400, prob: 0.00006 },
+];
+const STAR_MODES = {
+  star: { col: 'stars', rewards: STAR_REWARDS, packs: { 1: 100, 10: 1000, 30: 3000 }, errCode: 'not_enough_stars', errMsg: '星星不足' },
+  moon: { col: 'moons', rewards: MOON_REWARDS, packs: { 1: 300, 10: 3000, 30: 9000 }, errCode: 'not_enough_moons', errMsg: '月亮不足' },
+  sun: { col: 'suns', rewards: SUN_REWARDS, packs: { 1: 3000, 10: 30000, 30: 90000 }, errCode: 'not_enough_suns', errMsg: '太阳不足' },
+};
+
+// Prize catalog: gold value -> gift skin. Bag item_key is String(gold).
+const STAR_GIFTS = {
+  5: { emoji: '🐛', name: '小虫虫' }, 10: { emoji: '🍭', name: '棒棒糖' },
+  50: { emoji: '🧦', name: '幸运袜' }, 100: { emoji: '🦆', name: '呱呱鸭' },
+  166: { emoji: '🎀', name: '蝴蝶结' }, 266: { emoji: '🎈', name: '飘飘球' },
+  500: { emoji: '🌮', name: '塔可君' }, 1000: { emoji: '🕹️', name: '游戏王' },
+  2500: { emoji: '🍕', name: '披萨侠' }, 3000: { emoji: '🦖', name: '小恐龙' },
+  5200: { emoji: '💌', name: '心动信' }, 6600: { emoji: '🪩', name: '迪斯科' },
+  10000: { emoji: '🛼', name: '轮滑鞋' }, 13140: { emoji: '💘', name: '一生一世' },
+  28800: { emoji: '🦄', name: '独角兽' }, 33440: { emoji: '🏆', name: '大奖杯' },
+  52000: { emoji: '🏎️', name: '跑车君' }, 66660: { emoji: '🐉', name: '福气龙' },
+  88000: { emoji: '🛥️', name: '土豪艇' }, 99900: { emoji: '🏰', name: '梦幻堡' },
+  131400: { emoji: '💍', name: '钻戒王' }, 334400: { emoji: '🛸', name: '外星舰' },
+};
+
+const WISH_TARGETS = [3000, 5200, 10000, 13140, 28800, 52000, 66660, 88000, 99900, 131400];
+const wishFullCost = (v) => Math.round((v * (6200 / 5200)) / 10) * 10;   // 100% needs target×~1.19
+
+// Crypto-uniform [0, 1) — Math.random() is not for money.
+function starRandom() {
+  return crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+}
+function starPick(rewards) {
+  const r = starRandom();
+  let acc = 0;
+  for (const x of rewards) { acc += x.prob; if (r <= acc) return x.gold; }
+  return rewards[rewards.length - 1].gold;
+}
+
+// Big star wins (10k+) broadcast to every room feed, same framing as the wheel.
+async function starAnnounce(db, me, value, qty = 1) {
+  const tier = gameTier(value);
+  if (!tier) return;
+  const skin = STAR_GIFTS[value];
+  await db.prepare(
+    `INSERT INTO chat (user_id, username, color, avatar, text, kind, at)
+     VALUES (?, ?, ?, ?, ?, 'bcast', ?)`
+  ).bind(me.id, me.username, me.color, me.avatar ?? '🐰',
+    JSON.stringify({ type: 'star', winner: me.username, emoji: skin.emoji, name: skin.name, value, qty, tier }),
+    Date.now()).run();
+}
+
 const publicUser = (row) => ({
   id: row.id,
   username: row.username,
@@ -521,7 +590,8 @@ async function handle(request, env) {
     if (seatedIds.length) {
       const marks = seatedIds.map(() => '?').join(',');
       const { results: charmRows = [] } = await db.prepare(
-        `SELECT to_id AS uid, SUM(received) AS total FROM gifts WHERE to_id IN (${marks}) GROUP BY to_id`
+        `SELECT to_id AS uid, SUM(received) AS total FROM gifts
+          WHERE to_id IN (${marks}) AND from_id <> to_id GROUP BY to_id`
       ).bind(...seatedIds).all();
       charm = new Map(charmRows.map((r) => [r.uid, r.total]));
     }
@@ -622,43 +692,11 @@ async function handle(request, env) {
     });
   }
 
-  // Star Travel records a won item into the bag.
-  if (pathname === '/api/bag/add' && method === 'POST') {
-    if (!me) return fail(401, 'auth_required', '请先登录');
-    const { key, emoji, name, value, qty } = await readJson(request);
-    const k = String(key ?? '').trim();
-    const v = Math.trunc(Number(value));
-    const n = Math.trunc(Number(qty));
-    if (!k || !emoji || !Number.isFinite(v) || v < 0 || !Number.isInteger(n) || n <= 0) {
-      return fail(400, 'bad_item', '无效的物品');
-    }
-    await db.batch([
-      db.prepare(
-        `INSERT INTO inventory (user_id, item_key, emoji, name, value, count)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT (user_id, item_key) DO UPDATE SET count = inventory.count + excluded.count`
-      ).bind(me.id, k, String(emoji), String(name ?? ''), v, n),
-      db.prepare(
-        'INSERT INTO star_wins (user_id, username, emoji, name, value, qty, at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      ).bind(me.id, me.username, String(emoji), String(name ?? ''), v, n, Date.now()),
-    ]);
-    return json({ ok: true });
-  }
-
-  // Star game consumes bag items (its own gift / wishing pool). Decrement,
-  // guarded so it can't go negative.
-  if (pathname === '/api/bag/remove' && method === 'POST') {
-    if (!me) return fail(401, 'auth_required', '请先登录');
-    const { key, qty } = await readJson(request);
-    const k = String(key ?? '').trim();
-    const n = Math.max(1, Math.trunc(Number(qty) || 1));
-    const item = await db.prepare('SELECT count FROM inventory WHERE user_id = ? AND item_key = ?')
-      .bind(me.id, k).first();
-    if (!item || item.count < n) return fail(400, 'not_enough_items', '背包物品不足');
-    await db.prepare('UPDATE inventory SET count = count - ? WHERE user_id = ? AND item_key = ?')
-      .bind(n, me.id, k).run();
-    return json({ ok: true });
-  }
+  // NOTE: the old client-trusting endpoints (/api/bag/add, /api/bag/remove,
+  // /api/coins/adjust, /api/star-wallet/adjust, /api/star/announce) are gone —
+  // any browser could mint currency through them. The star game now runs
+  // through /api/star/buy, /api/star/voyage and /api/star/wish below, where
+  // the server owns every roll and every balance change.
 
   // Star history: the global 5000+ feed and the player's own plays, newest
   // first, plus totals.
@@ -727,82 +765,131 @@ async function handle(request, env) {
     return json({ ok: true });
   }
 
-  // Star Travel announces a win to everyone's "game" feed, framed like the
-  // wheel: 1w+ silver, 5w+ gold (below 1w: no broadcast).
-  if (pathname === '/api/star/announce' && method === 'POST') {
+  // Buy a currency pack with coins. Price comes from the server table only.
+  if (pathname === '/api/star/buy' && method === 'POST') {
     if (!me) return fail(401, 'auth_required', '请先登录');
-    const { emoji, name, value } = await readJson(request);
-    const v = Math.trunc(Number(value));
-    const tier = gameTier(v);
-    if (!tier || !emoji) return json({ ok: false });   // below the 1w threshold
+    const { kind, qty } = await readJson(request);
+    const mode = STAR_MODES[String(kind)];
+    const n = Math.trunc(Number(qty));
+    const price = mode?.packs[n];
+    if (!price) return fail(400, 'bad_pack', '无效的兑换包');
 
-    await db.prepare(
-      `INSERT INTO chat (user_id, username, color, avatar, text, kind, at)
-       VALUES (?, ?, ?, ?, ?, 'bcast', ?)`
-    ).bind(me.id, me.username, me.color, me.avatar ?? '🐰',
-      JSON.stringify({ type: 'star', winner: me.username, emoji: String(emoji), name: String(name ?? ''), value: v, tier }),
-      Date.now()).run();
-    return json({ ok: true });
+    // One UPDATE changes both columns; the WHERE is the balance check, so it
+    // either debits coins and credits the currency together, or does nothing.
+    const bought = await db.prepare(
+      `UPDATE users SET coins = coins - ?, ${mode.col} = ${mode.col} + ?
+         WHERE id = ? AND coins >= ?`
+    ).bind(price, n, me.id, price).run();
+    if (bought.meta.changes !== 1) return fail(400, 'insufficient', '金币不足');
+
+    const user = await db.prepare('SELECT * FROM users WHERE id = ?').bind(me.id).first();
+    return json({ user: publicUser(user) });
   }
 
-  // Star game syncs its balance with the real account. Positive delta = a win,
-  // negative = a spend. Guarded so it can never overdraw.
-  if (pathname === '/api/coins/adjust' && method === 'POST') {
+  // One voyage batch: spend `count` of the mode's currency, roll the prizes
+  // server-side, bank them into the bag — all gated on the payment.
+  if (pathname === '/api/star/voyage' && method === 'POST') {
     if (!me) return fail(401, 'auth_required', '请先登录');
-    const delta = Math.trunc(Number((await readJson(request)).delta));
-    if (!Number.isFinite(delta) || delta === 0) return json({ coins: me.coins });
+    const { kind, count } = await readJson(request);
+    const mode = STAR_MODES[String(kind)];
+    const n = Math.trunc(Number(count));
+    if (!mode || !Number.isInteger(n) || n < 1 || n > 30) return fail(400, 'bad_count', '无效的次数');
 
-    if (delta < 0) {
-      const done = await db.prepare(
-        'UPDATE users SET coins = coins + ? WHERE id = ? AND coins >= ?'
-      ).bind(delta, me.id, -delta).run();
-      if (done.meta.changes !== 1) return fail(400, 'insufficient', '余额不足');
-    } else {
-      await db.prepare('UPDATE users SET coins = coins + ? WHERE id = ?').bind(delta, me.id).run();
+    // Charge first, balance-checked. If nothing was debited, the player
+    // doesn't have enough currency — bail before rolling anything.
+    const charged = await db.prepare(
+      `UPDATE users SET ${mode.col} = ${mode.col} - ? WHERE id = ? AND ${mode.col} >= ?`
+    ).bind(n, me.id, n).run();
+    if (charged.meta.changes !== 1) return fail(400, mode.errCode, mode.errMsg);
+
+    // Paid — now roll (server randomness) and bank the prizes. These writes
+    // don't touch currency, so they can't overdraw; batch keeps them atomic.
+    const items = Array.from({ length: n }, () => starPick(mode.rewards));
+    const counts = new Map();
+    for (const g of items) counts.set(g, (counts.get(g) ?? 0) + 1);
+    const prizes = [...counts.entries()];   // [goldValue, qty]
+
+    const at = Date.now();
+    const ops = [];
+    for (const [g, q] of prizes) {
+      ops.push(db.prepare(
+        `INSERT INTO inventory (user_id, item_key, emoji, name, value, count)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT (user_id, item_key) DO UPDATE SET count = inventory.count + excluded.count`
+      ).bind(me.id, String(g), STAR_GIFTS[g].emoji, STAR_GIFTS[g].name, g, q));
+      ops.push(db.prepare(
+        'INSERT INTO star_wins (user_id, username, emoji, name, value, qty, at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).bind(me.id, me.username, STAR_GIFTS[g].emoji, STAR_GIFTS[g].name, g, q, at));
     }
-    const updated = await db.prepare('SELECT coins FROM users WHERE id = ?').bind(me.id).first();
-    return json({ coins: updated.coins });
+    await db.batch(ops);
+    for (const [g, q] of prizes) await starAnnounce(db, me, g, q);
+
+    const user = await db.prepare('SELECT * FROM users WHERE id = ?').bind(me.id).first();
+    return json({ items, user: publicUser(user) });
   }
 
-  // Star Travel persists its bought currencies (stars / moons) to the account,
-  // so they survive navigating to the wheel or chat room. Positive delta = a
-  // purchase, negative = spent on a voyage. Guarded so neither can go negative.
-  if (pathname === '/api/star-wallet/adjust' && method === 'POST') {
+  // Wishing pool: pledge bag items toward a target; the server rolls.
+  if (pathname === '/api/star/wish' && method === 'POST') {
     if (!me) return fail(401, 'auth_required', '请先登录');
-    const body = await readJson(request);
-    const starDelta = Math.trunc(Number(body.starDelta) || 0);
-    const moonDelta = Math.trunc(Number(body.moonDelta) || 0);
-    const sunDelta = Math.trunc(Number(body.sunDelta) || 0);
+    const { target, materials } = await readJson(request);
+    const tv = Math.trunc(Number(target));
+    if (!WISH_TARGETS.includes(tv)) return fail(400, 'bad_target', '无效的许愿目标');
 
-    if (starDelta < 0) {
-      const done = await db.prepare(
-        'UPDATE users SET stars = stars + ? WHERE id = ? AND stars >= ?'
-      ).bind(starDelta, me.id, -starDelta).run();
-      if (done.meta.changes !== 1) return fail(400, 'not_enough_stars', '星星不足');
-    } else if (starDelta > 0) {
-      await db.prepare('UPDATE users SET stars = stars + ? WHERE id = ?').bind(starDelta, me.id).run();
+    const entries = Object.entries(materials ?? {})
+      .map(([k, q]) => [String(k).trim(), Math.trunc(Number(q))]);
+    if (!entries.length || entries.length > 40) return fail(400, 'bad_materials', '无效的材料');
+    for (const [k, q] of entries) {
+      if (!STAR_GIFTS[k] || !Number.isInteger(q) || q < 1 || q > 10_000) {
+        return fail(400, 'bad_materials', '无效的材料');
+      }
     }
 
-    if (moonDelta < 0) {
-      const done = await db.prepare(
-        'UPDATE users SET moons = moons + ? WHERE id = ? AND moons >= ?'
-      ).bind(moonDelta, me.id, -moonDelta).run();
-      if (done.meta.changes !== 1) return fail(400, 'not_enough_moons', '月亮不足');
-    } else if (moonDelta > 0) {
-      await db.prepare('UPDATE users SET moons = moons + ? WHERE id = ?').bind(moonDelta, me.id).run();
+    // Ownership check up front for a clean error; the in-transaction guard
+    // below still catches races.
+    const { results: owned = [] } = await db.prepare(
+      'SELECT item_key, count FROM inventory WHERE user_id = ?'
+    ).bind(me.id).all();
+    const ownMap = new Map(owned.map((r) => [r.item_key, r.count]));
+    for (const [k, q] of entries) {
+      if ((ownMap.get(k) ?? 0) < q) return fail(400, 'not_enough_items', '背包物品不足');
     }
 
-    if (sunDelta < 0) {
-      const done = await db.prepare(
-        'UPDATE users SET suns = suns + ? WHERE id = ? AND suns >= ?'
-      ).bind(sunDelta, me.id, -sunDelta).run();
-      if (done.meta.changes !== 1) return fail(400, 'not_enough_suns', '太阳不足');
-    } else if (sunDelta > 0) {
-      await db.prepare('UPDATE users SET suns = suns + ? WHERE id = ?').bind(sunDelta, me.id).run();
+    const matValue = entries.reduce((sum, [k, q]) => sum + Number(k) * q, 0);
+    const prob = Math.min(1, matValue / wishFullCost(tv));
+    const success = starRandom() < prob;
+
+    // Unconditional decrements + a division-by-zero tripwire: if any count
+    // went negative (a concurrent spend of the same items), the whole
+    // transaction rolls back — materials can never be double-spent.
+    const stmts = entries.map(([k, q]) =>
+      db.prepare('UPDATE inventory SET count = count - ? WHERE user_id = ? AND item_key = ?')
+        .bind(q, me.id, k));
+    stmts.push(db.prepare(
+      `SELECT 1 / (CASE WHEN EXISTS (
+         SELECT 1 FROM inventory WHERE user_id = ? AND count < 0
+       ) THEN 0 ELSE 1 END) AS guard`
+    ).bind(me.id));
+    if (success) {
+      stmts.push(db.prepare(
+        `INSERT INTO inventory (user_id, item_key, emoji, name, value, count)
+         VALUES (?, ?, ?, ?, ?, 1)
+         ON CONFLICT (user_id, item_key) DO UPDATE SET count = inventory.count + excluded.count`
+      ).bind(me.id, String(tv), STAR_GIFTS[tv].emoji, STAR_GIFTS[tv].name, tv));
+    }
+    try {
+      await db.batch(stmts);
+    } catch {
+      return fail(400, 'not_enough_items', '背包物品不足');
     }
 
-    const u = await db.prepare('SELECT stars, moons, suns FROM users WHERE id = ?').bind(me.id).first();
-    return json({ stars: u.stars, moons: u.moons, suns: u.suns });
+    if (success) {
+      await db.prepare(
+        'INSERT INTO star_wins (user_id, username, emoji, name, value, qty, at) VALUES (?, ?, ?, ?, ?, 1, ?)'
+      ).bind(me.id, me.username, STAR_GIFTS[tv].emoji, STAR_GIFTS[tv].name, tv, Date.now()).run();
+      await starAnnounce(db, me, tv);
+    }
+
+    return json({ success, prob, matValue });
   }
 
   if (pathname === '/api/gifts/send' && method === 'POST') {
@@ -914,9 +1001,12 @@ async function handle(request, env) {
     const col = board === 'charm' ? 'to_id' : 'from_id';
     const nameCol = board === 'charm' ? 'to_name' : 'from_name';
     const amount = board === 'charm' ? 'received' : 'cost';
+    // Self-gifts don't count toward either board — otherwise charm (and,
+    // for the superadmin, wealth) could be farmed at little or no cost.
     const { results = [] } = await db.prepare(
       `SELECT ${col} AS uid, ${nameCol} AS name, SUM(${amount}) AS total, COUNT(*) AS times
-         FROM gifts GROUP BY ${col}, ${nameCol} ORDER BY total DESC LIMIT 20`
+         FROM gifts WHERE from_id <> to_id
+         GROUP BY ${col}, ${nameCol} ORDER BY total DESC LIMIT 20`
     ).all();
 
     // Join the current colour/avatar for display.
@@ -1126,6 +1216,18 @@ async function handle(request, env) {
     };
     const needed = ROUTE_PERM[pathname];
     if (needed && !hasPerm(me, needed)) {
+      return fail(403, 'no_permission', '没有该权限');
+    }
+
+    // Shared read helpers expose every user's balance and the money audit
+    // trail — any money/user admin standing qualifies, but a seats-only
+    // chat admin does not.
+    const READ_ROUTES = new Set([
+      '/api/admin/users', '/api/admin/admins', '/api/admin/audit',
+      '/api/admin/lookup', '/api/admin/search', '/api/admin/topup-stats',
+    ]);
+    if (READ_ROUTES.has(pathname) && !me.is_super
+        && !['manual', 'appeals', 'password', 'admins'].some((p) => hasPerm(me, p))) {
       return fail(403, 'no_permission', '没有该权限');
     }
 
