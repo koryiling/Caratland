@@ -59,11 +59,29 @@ body.in-hall .topbar .identity {
 /* The trophy/panel toggle only matters inside the game drawer. */
 body.in-hall:not(.drawer-open) #side-toggle { display: none; }
 
+/* #game-screen is a grid; its single column defaults to max-content, so a wide
+   grid item (the hall, driven by long chat/ticker lines) stretches it past the
+   viewport. minmax(0,1fr) pins the column to the container so children shrink. */
+#game-screen { grid-template-columns: minmax(0, 1fr); }
+
+/* Narrow phones: keep the top bar on one line — drop the #id, cap the name,
+   shrink the coins so name + coins + avatar always fit. */
+@media (max-width: 480px) {
+  body.in-hall .uid { display: none; }
+  body.in-hall .identity-name { max-width: 4.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body.in-hall .coins-chip { font-size: 0.78rem; padding-inline: 0.4rem; }
+  body.in-hall .topbar { gap: 0.3rem; }
+  body.in-hall .topbar-right { gap: 0.3rem; min-width: 0; }
+  /* auto-polls every 5s, so the manual refresh isn't needed on a phone */
+  body.in-hall #refresh { display: none; }
+}
+
 /* ---------- hall column ---------- */
 
 .hall {
   position: relative;
   width: min(100%, 520px);
+  max-width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -71,6 +89,11 @@ body.in-hall:not(.drawer-open) #side-toggle { display: none; }
   min-height: calc(100dvh - 6.5rem);
   padding-bottom: 0.4rem;
 }
+/* Flex/grid children must be allowed to shrink, or a nowrap ticker line or a
+   long chat message forces the whole hall (and with it the seats + top bar)
+   wider than the viewport. */
+.hall > *, .hall-ticker > *, .hall .tick-text, .hall-chat > * { min-width: 0; }
+.hall .seats { max-width: 100%; }
 
 /* ---------- mic seats ---------- */
 
@@ -459,6 +482,23 @@ body.in-hall:not(.drawer-open) #side-toggle { display: none; }
   letter-spacing: 0.2rem;
 }
 body.drawer-open .game-handle { display: none; }
+/* On phones/tablets the edge tab would overlap the mic seats, and the dock
+   already has a 🎮 button (plus edge-swipe), so hide it there. */
+@media (max-width: 899px) { .game-handle { display: none; } }
+/* Never let the floating tab sit on top of an open modal. */
+body:has(.panel:not([hidden])) .game-handle,
+body:has(#more-sheet:not([hidden])) .game-handle { display: none; }
+
+/* Dim the area behind the drawer so the peeking hall reads as "behind". */
+body.drawer-open::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 34;
+  background: rgba(24, 42, 22, 0.4);
+  animation: drawer-dim 0.3s ease;
+}
+@keyframes drawer-dim { from { opacity: 0; } }
 
 .game-drawer {
   position: fixed;

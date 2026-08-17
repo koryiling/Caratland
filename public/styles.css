@@ -32,6 +32,11 @@
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 img, svg, video, canvas { max-width: 100%; }
 input, select, textarea { font-size: max(16px, 1rem); }
+/* Clip on BOTH html and body: the off-canvas game drawer is position:fixed and
+   translated off-screen right; body's overflow-x alone doesn't contain a fixed
+   descendant, so without html clipping it inflates the document width and the
+   hall/top-bar overflow on phones. */
+html { overflow-x: hidden; }
 body { overflow-x: hidden; }
 
 /* Top-up custom-amount row */

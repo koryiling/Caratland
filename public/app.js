@@ -437,10 +437,17 @@ function renderBoard() {
   }
 }
 
+// Compact coin count for the tight top-bar chip: 12,300 stays, 1,124,167 -> 1.1M.
+function compactCoins(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, '') + 'M';
+  if (n >= 100_000) return Math.round(n / 1000) + 'K';
+  return num.format(n);
+}
+
 function renderStats() {
   if (!state.me) return;
-  els.balance.textContent = num.format(state.me.coins);
-  els.coinsTop.textContent = num.format(state.me.coins);
+  els.balance.textContent = num.format(state.me.coins);   // full value inside the game
+  els.coinsTop.textContent = compactCoins(state.me.coins);
 }
 
 function renderPhaseText() {
