@@ -17,3 +17,6 @@ npm-debug.log*
 .agents/
 .claude/
 skills-lock.json
+
+# gift source art (originals with price pills); cropped versions live in public/gifts/
+/directgift/

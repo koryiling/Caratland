@@ -523,11 +523,13 @@ body.drawer-open .game-handle { display: none; }
 /* Grid card: when a gift has art, show the picture large and drop the emoji. */
 .gift-opt .gift-pic {
   width: 100%;
-  max-width: 84px;
+  max-width: 88px;
   aspect-ratio: 1 / 1;
   object-fit: contain;
   margin: 0 auto;
   display: block;
+  border-radius: 12px;
+  background: #fff;
 }
 .gift-opt.has-pic { padding-top: 0.35rem; }
 
@@ -550,8 +552,11 @@ body.drawer-open .game-handle { display: none; }
   height: 92px;
   object-fit: contain;
   margin: -46px 0 0 -46px;
-  filter: drop-shadow(0 3px 10px rgba(60, 90, 50, 0.45));
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(60, 90, 50, 0.4);
 }
+img.fx-big-emoji { border-radius: 20px; background: #fff; }
 img.fx-big-emoji {
   width: 46vw;
   max-width: 260px;
