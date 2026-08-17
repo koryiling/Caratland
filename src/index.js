@@ -41,18 +41,21 @@ const AVATARS = ['🐰', '🐻', '🐱', '🐶', '🦊', '🐼', '🐨', '🐯',
 const RECEIVER_SHARE = 0.7;
 // Gift ladder — shared with the Star Travel prizes so values are consistent
 // across the whole app.
+// `img` is a PNG under public/gifts/ (named by cost). The client shows it when
+// the file exists and falls back to the emoji otherwise, so a missing image
+// never breaks the UI. Kept sorted by cost (the room grid renders in order).
 const GIFTS = [
-  { id: 'balloon', emoji: '🎈',  name: '气球',       cost: 266 },
-  { id: 'bouquet', emoji: '💐',  name: '花束',       cost: 500 },
-  { id: 'giftbox', emoji: '🎁',  name: '礼物盒',     cost: 1000 },
-  { id: 'cupcake', emoji: '🧁',  name: '杯子蛋糕',   cost: 2500 },
-  { id: 'love',    emoji: '💞',  name: '心动520',    cost: 5200 },
-  { id: 'star',    emoji: '⭐',  name: '星辰',       cost: 6600 },
-  { id: 'unicorn', emoji: '🦄',  name: '梦幻独角兽', cost: 28800 },
-  { id: 'trophy',  emoji: '🏆',  name: '荣耀奖杯',   cost: 33440 },
-  { id: 'car',     emoji: '🏎️', name: '梦幻跑车',   cost: 52000 },
-  { id: 'ring',    emoji: '💍',  name: '永恒钻戒',   cost: 131400 },
-  { id: 'cruiser', emoji: '🛸',  name: '梦幻星舰',   cost: 334400 },
+  { id: 'balloon', emoji: '🎈',  name: '气球',       cost: 266,    img: 'gifts/g266.png' },
+  { id: 'bouquet', emoji: '💐',  name: '花束',       cost: 500,    img: 'gifts/g500.png' },
+  { id: 'giftbox', emoji: '🎁',  name: '礼物盒',     cost: 1000,   img: 'gifts/g1000.png' },
+  { id: 'cupcake', emoji: '🧁',  name: '杯子蛋糕',   cost: 2500,   img: 'gifts/g2500.png' },
+  { id: 'love',    emoji: '💞',  name: '心动520',    cost: 5200,   img: 'gifts/g5200.png' },
+  { id: 'star',    emoji: '⭐',  name: '星辰',       cost: 6600,   img: 'gifts/g6600.png' },
+  { id: 'unicorn', emoji: '🦄',  name: '梦幻独角兽', cost: 28800,  img: 'gifts/g28800.png' },
+  { id: 'trophy',  emoji: '🏆',  name: '荣耀奖杯',   cost: 33440,  img: 'gifts/g33440.png' },
+  { id: 'car',     emoji: '🏎️', name: '梦幻跑车',   cost: 52000,  img: 'gifts/g52000.png' },
+  { id: 'ring',    emoji: '💍',  name: '永恒钻戒',   cost: 131400, img: 'gifts/g131400.png' },
+  { id: 'cruiser', emoji: '🛸',  name: '梦幻星舰',   cost: 334400, img: 'gifts/g334400.png' },
 ];
 const giftById = new Map(GIFTS.map((g) => [g.id, g]));
 
@@ -941,7 +944,7 @@ async function handle(request, env) {
       `INSERT INTO chat (user_id, username, color, avatar, text, kind, at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`
     ).bind(me.id, me.username, me.color, me.avatar ?? '🐰',
-      JSON.stringify({ from: me.username, to: target.username, emoji: gift.emoji, name: gift.name, cost: gift.cost, tier }),
+      JSON.stringify({ from: me.username, to: target.username, emoji: gift.emoji, img: gift.img, name: gift.name, cost: gift.cost, tier }),
       kind, now));
 
     await db.batch(ops);

@@ -518,6 +518,19 @@ body.drawer-open .game-handle { display: none; }
 
 #more-sheet .card { margin-top: 0.7rem; }
 
+/* ---------- gift illustrations ---------- */
+
+/* Grid card: when a gift has art, show the picture large and drop the emoji. */
+.gift-opt .gift-pic {
+  width: 100%;
+  max-width: 84px;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  margin: 0 auto;
+  display: block;
+}
+.gift-opt.has-pic { padding-top: 0.35rem; }
+
 /* ---------- gift effects (fx.js) ---------- */
 
 .fx-fly {
@@ -530,6 +543,20 @@ body.drawer-open .game-handle { display: none; }
   will-change: transform, opacity;
   margin: -0.95rem 0 0 -0.95rem;   /* center on the coordinate */
   filter: drop-shadow(0 2px 6px rgba(60, 90, 50, 0.35));
+}
+/* Flying illustration: bigger than an emoji glyph, art centered on the point. */
+.fx-fly.fx-fly-img {
+  width: 92px;
+  height: 92px;
+  object-fit: contain;
+  margin: -46px 0 0 -46px;
+  filter: drop-shadow(0 3px 10px rgba(60, 90, 50, 0.45));
+}
+img.fx-big-emoji {
+  width: 46vw;
+  max-width: 260px;
+  height: auto;
+  object-fit: contain;
 }
 
 .fx-ripple {

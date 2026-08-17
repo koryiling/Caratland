@@ -94,6 +94,29 @@ const state = {
 const tiles = new Map();
 const animalById = new Map();
 
+/* ---- Gift visuals ----
+   A gift shows its illustration (public/gifts/*.png) when the file exists,
+   and falls back to the emoji if the image is missing or fails to load, so
+   art can be dropped in gift-by-gift without ever breaking the UI. */
+function giftFaceHTML(emoji, img, cls = 'gift-emoji') {
+  if (!img) return `<span class="${cls}">${emoji}</span>`;
+  // The onerror swaps the broken <img> for the emoji span in place.
+  return `<img class="${cls} gift-pic" src="${img}" alt="" loading="lazy"
+    onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'${cls}',textContent:'${emoji}'}))">`;
+}
+
+// A flying gift node for the send effect: an <img> if art exists, else emoji.
+function giftFaceNode(emoji, img) {
+  if (img) {
+    const el = document.createElement('img');
+    el.src = img;
+    el.alt = '';
+    el.onerror = () => { el.replaceWith(Object.assign(document.createElement('span'), { textContent: emoji })); };
+    return el;
+  }
+  return null;   // null → fx flies the emoji as text
+}
+
 /* ---- API ---- */
 
 async function api(path, { method = 'GET', body } = {}) {
@@ -949,10 +972,10 @@ function playGiftFx(m) {
   if (g.type === 'star') return bigGiftFx({ emoji: g.emoji, tier: g.tier });
   if (g.type === 'wheel') return;
 
-  if (!g.emoji) return;
+  if (!g.emoji && !g.img) return;
   const seat = [...els.seats.querySelectorAll('.seat.taken')].find((s) => s.dataset.uname === g.to);
-  giftFly({ emoji: g.emoji, value: g.cost ?? 0, targetEl: seat?.querySelector('.seat-ring') });
-  if (g.tier) bigGiftFx({ emoji: g.emoji, tier: g.tier });
+  giftFly({ emoji: g.emoji, node: giftFaceNode(g.emoji, g.img), value: g.cost ?? 0, targetEl: seat?.querySelector('.seat-ring') });
+  if (g.tier) bigGiftFx({ emoji: g.emoji, img: g.img, tier: g.tier });
 }
 
 // Hall ticker — the newest few gift / win announcements as floating pills.
@@ -1156,10 +1179,12 @@ function renderGiftGrid() {
     return;
   }
 
-  els.giftGrid.replaceChildren(...state.gifts.map((g) => {
+  // Always sorted low→high by cost.
+  const gifts = [...state.gifts].sort((a, b) => a.cost - b.cost);
+  els.giftGrid.replaceChildren(...gifts.map((g) => {
     const b = document.createElement('button');
-    b.className = 'gift-opt';
-    b.innerHTML = `<span class="gift-emoji">${g.emoji}</span>
+    b.className = `gift-opt ${g.img ? 'has-pic' : ''}`;
+    b.innerHTML = `${giftFaceHTML(g.emoji, g.img)}
       <span class="gift-name">${g.name}</span>
       <span class="gift-cost">🪙 ${num.format(g.cost)}</span>`;
     b.addEventListener('click', () => sendGift(g));

@@ -11,12 +11,21 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const CONFETTI_COLORS = ['#8fbc6e', '#c9a94f', '#ffffff', '#f2ead0', '#64934a', '#d9e7c4'];
 
-/* Fly one emoji from the bottom of the screen to the target seat ring. */
-export function giftFly({ emoji, value = 0, targetEl }) {
+// Build the flying element: an illustration node when provided, else the emoji.
+function flyEl(emoji, node) {
+  const el = node ?? document.createElement('span');
+  el.classList.add('fx-fly');
+  if (!node) el.textContent = emoji;
+  else el.classList.add('fx-fly-img');
+  return el;
+}
+
+/* Fly one gift from the bottom of the screen to the target seat ring. */
+export function giftFly({ emoji, node = null, value = 0, targetEl }) {
   if (reduced) return;
 
   // Recipient not seated (or seat not rendered): a simple center pop.
-  if (!targetEl || !targetEl.isConnected) return centerPop(emoji);
+  if (!targetEl || !targetEl.isConnected) return centerPop(emoji, node);
 
   const to = targetEl.getBoundingClientRect();
   const toX = to.left + to.width / 2;
@@ -26,9 +35,7 @@ export function giftFly({ emoji, value = 0, targetEl }) {
   const midX = (fromX + toX) / 2 + (Math.random() * 80 - 40);
   const midY = Math.min(fromY, toY) - 130;   // arc apex
 
-  const el = document.createElement('span');
-  el.className = 'fx-fly';
-  el.textContent = emoji;
+  const el = flyEl(emoji, node);
   document.body.append(el);
 
   const anim = el.animate([
@@ -41,7 +48,8 @@ export function giftFly({ emoji, value = 0, targetEl }) {
     el.remove();
     ringRipple(targetEl);
     floatValue(targetEl, value);
-    // little pop where it lands
+    // little pop where it lands (emoji only — an image already read clearly)
+    if (node) return;
     const pop = document.createElement('span');
     pop.className = 'fx-fly';
     pop.textContent = emoji;
@@ -53,10 +61,8 @@ export function giftFly({ emoji, value = 0, targetEl }) {
   };
 }
 
-function centerPop(emoji) {
-  const el = document.createElement('span');
-  el.className = 'fx-fly';
-  el.textContent = emoji;
+function centerPop(emoji, node = null) {
+  const el = flyEl(emoji, node);
   document.body.append(el);
   const x = innerWidth / 2, y = innerHeight / 2;
   el.animate([
@@ -86,15 +92,23 @@ function floatValue(targetEl, value) {
 }
 
 /* Fullscreen celebration for broadcast-tier gifts. */
-export function bigGiftFx({ emoji, tier = 'silver' }) {
+export function bigGiftFx({ emoji, img = null, tier = 'silver' }) {
   if (reduced) return;
   if (document.querySelector('.fx-big')) return;   // one at a time
 
   const wrap = document.createElement('div');
   wrap.className = 'fx-big';
-  const face = document.createElement('span');
-  face.className = 'fx-big-emoji';
-  face.textContent = emoji;
+  let face;
+  if (img) {
+    face = document.createElement('img');
+    face.src = img;
+    face.alt = '';
+    face.onerror = () => { const s = document.createElement('span'); s.className = 'fx-big-emoji'; s.textContent = emoji; face.replaceWith(s); };
+  } else {
+    face = document.createElement('span');
+    face.textContent = emoji;
+  }
+  face.classList.add('fx-big-emoji');
   wrap.append(face);
   document.body.append(wrap);
   setTimeout(() => wrap.remove(), 2400);
