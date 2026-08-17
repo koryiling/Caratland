@@ -121,12 +121,14 @@ async function loadAdmins() {
       const li = document.createElement('li');
       li.className = 'panel-item';
       const perms = a.isSuper ? 'ALL' : (a.perms.length ? a.perms.join(', ') : t('a_permsNone'));
+      const limitText = a.isSuper ? '无上限' : `单笔 ${Number(a.topupLimit ?? 200000).toLocaleString('en-US')}`;
       li.innerHTML = `
         <span class="lb-dot" style="background:${a.color}"></span>
         <span class="panel-user">${escapeHtml(a.username)}</span>
         <span class="uid">${a.id}</span>
         <span class="panel-tag">${a.isSuper ? 'SUPER' : 'ADMIN'}</span>
-        <span class="panel-picks">${escapeHtml(perms)}</span>`;
+        <span class="panel-picks">${escapeHtml(perms)}</span>
+        <span class="panel-tag" title="充值单笔上限">💰 ${limitText}</span>`;
       if (!a.isSuper) {
         const edit = document.createElement('button');
         edit.className = 'lb-tab';
@@ -139,6 +141,24 @@ async function loadAdmins() {
           els.grantTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
         });
         li.append(edit);
+
+        // Super sets this admin's single-top-up cap.
+        const limitBtn = document.createElement('button');
+        limitBtn.className = 'lb-tab';
+        limitBtn.textContent = '改充值上限';
+        limitBtn.addEventListener('click', async () => {
+          const cur = Number(a.topupLimit ?? 200000);
+          const input = prompt(`设置「${a.username}」的单笔充值上限（金币，0 = 禁止充值）`, String(cur));
+          if (input === null) return;
+          const limit = Math.trunc(Number(input.replace(/[, ]/g, '')));
+          if (!Number.isInteger(limit) || limit < 0) { toast('无效的金额'); return; }
+          try {
+            await api('/api/admin/set-topup-limit', { method: 'POST', body: { userId: a.id, limit } });
+            toast(`已将 ${a.username} 的单笔上限设为 ${limit.toLocaleString('en-US')}`);
+            loadAdmins();
+          } catch (error) { toast(error.message); }
+        });
+        li.append(limitBtn);
       }
       return li;
     }));

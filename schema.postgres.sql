@@ -32,9 +32,12 @@ CREATE TABLE IF NOT EXISTS users (
   is_admin       BIGINT NOT NULL DEFAULT 0,
   is_super       BIGINT NOT NULL DEFAULT 0,
   perms          TEXT,
+  topup_limit    BIGINT NOT NULL DEFAULT 200000,
   must_reset     BIGINT NOT NULL DEFAULT 0,
   created_at     BIGINT NOT NULL
 );
+-- Migration for databases created before topup_limit existed.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS topup_limit BIGINT NOT NULL DEFAULT 200000;
 
 CREATE TABLE IF NOT EXISTS sessions (
   token      TEXT PRIMARY KEY,

@@ -34,6 +34,23 @@ const permsOf = (row) =>
 
 const hasPerm = (row, perm) => !!row.is_super || permsOf(row).includes(perm);
 
+// How much a regular admin may credit in a single top-up. The superadmin has
+// no cap and can raise/lower each admin's limit (users.topup_limit).
+const DEFAULT_TOPUP_LIMIT = 200_000;
+const topupLimitOf = (row) =>
+  row.topup_limit == null ? DEFAULT_TOPUP_LIMIT : Number(row.topup_limit);
+
+// Returns a 403 Response if this actor's single-top-up cap is exceeded, else
+// null. `amount` is the coins being ADDED (only positive credits are capped).
+function overTopupLimit(actor, amount) {
+  if (actor.is_super || amount <= 0) return null;
+  const limit = topupLimitOf(actor);
+  if (amount > limit) {
+    return fail(403, 'over_limit', `单笔充值上限为 ${limit.toLocaleString('en-US')}，请联系超级管理员`);
+  }
+  return null;
+}
+
 const AVATARS = ['🐰', '🐻', '🐱', '🐶', '🦊', '🐼', '🐨', '🐯', '🦁', '🐮',
   '🐷', '🐸', '🐵', '🐔', '🐧', '🦄', '🐙', '🦖', '🐳', '🦉'];
 
@@ -162,6 +179,7 @@ const publicUser = (row) => ({
   isAdmin: !!row.is_admin,
   isSuper: !!row.is_super,
   perms: permsOf(row),
+  topupLimit: topupLimitOf(row),
 });
 
 async function readJson(request) {
@@ -1216,6 +1234,7 @@ async function handle(request, env) {
       '/api/admin/delete-user': 'password',
       '/api/admin/grant': 'admins',
       '/api/admin/revoke': 'admins',
+      '/api/admin/set-topup-limit': 'admins',
       '/api/admin/seat-kick': 'seats',
       '/api/admin/seat-assign': 'seats',
       '/api/admin/seat-mode': 'seats',
@@ -1258,6 +1277,28 @@ async function handle(request, env) {
       await logAction(db, {
         action: isAdmin ? 'grant_admin' : 'revoke_admin', actor: me, target: updated,
         detail: clean.join(',') || 'none',
+      });
+      return json({ user: publicUser(updated) });
+    }
+
+    // Set an admin's single-top-up cap. Super only. 0 means "no top-ups".
+    if (pathname === '/api/admin/set-topup-limit' && method === 'POST') {
+      if (!me.is_super) return fail(403, 'super_only', '仅超级管理员可操作');
+      const { userId, limit } = await readJson(request);
+      const target = await db.prepare('SELECT * FROM users WHERE id = ?')
+        .bind(String(userId ?? '').trim()).first();
+      if (!target) return fail(404, 'user_not_found', '找不到该用户 ID');
+      if (target.is_super) return fail(403, 'super_only', '超级管理员无充值上限');
+
+      const cap = Math.trunc(Number(limit));
+      if (!Number.isInteger(cap) || cap < 0 || cap > 1_000_000_000) {
+        return fail(400, 'bad_limit', '无效的上限');
+      }
+      await db.prepare('UPDATE users SET topup_limit = ? WHERE id = ?').bind(cap, target.id).run();
+      const updated = await db.prepare('SELECT * FROM users WHERE id = ?').bind(target.id).first();
+      await logAction(db, {
+        action: 'set_topup_limit', actor: me, target: updated, amount: cap,
+        detail: `limit ${cap}`,
       });
       return json({ user: publicUser(updated) });
     }
@@ -1439,6 +1480,11 @@ async function handle(request, env) {
         return json({ ok: true, status: 'rejected' });
       }
 
+      // A regular admin can only approve requests within their single-top-up
+      // cap; larger ones must go to the superadmin.
+      const capped = overTopupLimit(me, req.amount);
+      if (capped) return capped;
+
       // Same guard pattern as settlement: statement 2 only fires while the
       // row it just approved is still uncredited, so a double approve —
       // whether from a double click or two admins at once — pays once.
@@ -1532,6 +1578,8 @@ async function handle(request, env) {
       if (target.coins + delta < 0) {
         return fail(400, 'negative_balance', '扣款后余额会为负');
       }
+      const capped = overTopupLimit(me, delta);
+      if (capped) return capped;
 
       await db.prepare('UPDATE users SET coins = coins + ? WHERE id = ?')
         .bind(delta, target.id).run();
@@ -1555,6 +1603,8 @@ async function handle(request, env) {
       if (!Number.isInteger(value) || value < 0) return fail(400, 'bad_amount', '金额无效');
 
       const delta = value - target.coins;
+      const capped = overTopupLimit(me, delta);   // only a net increase is capped
+      if (capped) return capped;
       await db.prepare('UPDATE users SET coins = ? WHERE id = ?').bind(value, target.id).run();
       const updated = await db.prepare('SELECT * FROM users WHERE id = ?').bind(target.id).first();
       await logAction(db, {
